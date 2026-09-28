@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a responsive personal book-management web application where users can register, sign in, manage their own libraries and books, share libraries with other registered users, and add books through Kyobo search or ISBN scanning. Include a minimal administrator view for user management and keep external scraping isolated from the core application.
+Build a responsive personal book-management web application where users can register, sign in, manage their own libraries and books, share libraries with other registered users, and add books through Kyobo search or ISBN scanning. Include collection backup and restore, lending and reading history, ratings and statistics, auditable sensitive actions, and a minimal administrator view while keeping external scraping isolated from the core application.
 
 ## Technical direction
 
@@ -18,9 +18,11 @@ Build a responsive personal book-management web application where users can regi
 - Add a separate `Admin` credential and session model so administrator access cannot be obtained by changing a user's role. Admin IDs must use a namespace distinct from user login IDs.
 - Add `Library` with ID, owner, name, description, timestamps, memberships, books, location tags, and display settings. Creating a user should also create a default library transactionally.
 - Add `LibraryMember` with a unique library/user pair and role (`VIEWER` or `EDITOR`). Owners retain all permissions and cannot be represented as removable memberships.
-- Add `Book` scoped to one library with title, authors, genre, cover URL, ISBN-10/ISBN-13 where available, ownership state, format (`PHYSICAL` or `EBOOK`), reading state (`NOT_STARTED`, `READING`, or `DONE`), optional location tag, personal comment, an optional source URL pointing to the Kyobo product page, and timestamps.
+- Add `Book` scoped to one library with title, authors, genre, cover URL, ISBN-10/ISBN-13 where available, ownership state, format (`PHYSICAL` or `EBOOK`), reading state (`NOT_STARTED`, `READING`, or `DONE`), optional reading start/finish dates, optional integer rating from 1 to 5, optional location tag, personal comment, an optional source URL pointing to the Kyobo product page, and timestamps.
+- Add `Loan` as lending history for a physical book, with borrower name, lent date, optional due date, returned date, and timestamps. Enforce at most one open loan per book and retain completed loans.
 - Add `LocationTag` scoped to a library. Prevent deletion while in use unless the user explicitly reassigns or clears affected books.
 - Add `LibraryDisplaySettings` with default view (`LIST` or `GRID`) and booleans for the metadata shown on the main list.
+- Add `AuditLog` with actor principal, action, target type/ID, a minimal non-sensitive change summary, and timestamp. Audit sharing changes, imports, library/book deletion, account status changes, and other administrator actions without storing passwords, session data, or book comments.
 - Define indexes and uniqueness constraints for normalized login IDs, memberships, library book searches, ISBN lookup, and location names within a library.
 
 ## Implementation steps
@@ -36,16 +38,20 @@ Build a responsive personal book-management web application where users can regi
 9. Create a server-only `BookSearchProvider` interface and a Kyobo implementation. Fetch Kyobo pages/endpoints with timeouts, a descriptive user agent, bounded retries, response-size limits, parsing validation, and short-lived caching; map external responses into an internal candidate type so scraper changes remain localized.
 10. Add keyword search and ISBN lookup screens. Let users review and edit imported metadata before saving, persist the canonical Kyobo product URL as the book's source URL, detect likely duplicates by normalized ISBN within the selected library, and provide a manual-entry fallback whenever Kyobo is unavailable or incomplete.
 11. Add mobile ISBN scanning using the device camera. Prefer the browser `BarcodeDetector` API when available and use a maintained client-side fallback for unsupported browsers; require camera permission only after user interaction, stop media tracks on close/navigation, and allow typed ISBN entry at all times.
-12. Add a minimal admin area protected by the separate administrator session. List/search users, inspect account and library counts, and enable/disable user accounts. Do not expose password hashes or personal book comments.
-13. Polish navigation and operational behavior: desktop/mobile layouts, loading and not-found states, structured server logging without secrets, a health endpoint that checks application and database readiness, metadata, and clear handling for offline/external-provider failures.
+12. Add versioned JSON export/import for lossless backup and CSV export/import for spreadsheet book workflows. Export only libraries the requester owns; JSON includes books, tags, settings, loans, ratings, and reading dates, while CSV uses one row per book and omits settings and loan history. Exclude credentials, sessions, memberships, and audit logs from both formats. Validate MIME type, size, schema, field lengths, enum values, dates, and URLs; show a dry-run summary with duplicate/conflict choices before applying an import transactionally.
+13. Add lending management for physical books, including lend, return, due-date editing, current-loan visibility, overdue indication, and retained loan history. Add reading start/finish dates and ratings to book editing, keep dates consistent with reading state, and allow ratings only within the defined range.
+14. Add a per-library statistics view computed from authorized library data: totals by ownership, format, reading state, genre, and location; completion trends; ratings distribution; and current/overdue loans. Provide useful empty states and avoid exposing shared-library data outside the viewer's access.
+15. Record immutable audit events in the same transaction as sharing changes, imports, destructive library/book actions, user account status changes, and administrator actions. Let owners view their library audit history and administrators view system-level events, with pagination and authorization checks.
+16. Add a minimal admin area protected by the separate administrator session. List/search users, inspect account and library counts, enable/disable user accounts, and review system audit events. Do not expose password hashes or personal book comments.
+17. Polish navigation and operational behavior: desktop/mobile layouts, loading and not-found states, structured server logging without secrets, a health endpoint that checks application and database readiness, metadata, and clear handling for offline/external-provider failures.
 
 ## Test plan
 
-- Unit-test validation, login-ID normalization, ISBN normalization, Kyobo source URL mapping, permission decisions, book-search mapping/parsing, duplicate detection, and location/format invariants.
-- Integration-test registration/default-library creation, user authentication, environment-based admin bootstrap, one-time first-start admin setup, setup-route shutdown, administrator authentication, rejection of partial bootstrap configuration, library ownership and sharing roles, cross-user access denial, book CRUD, settings persistence, tag deletion rules, account disabling, and transaction rollback behavior against a test database.
+- Unit-test validation, login-ID normalization, ISBN normalization, Kyobo source URL mapping, permission decisions, book-search mapping/parsing, duplicate detection, import schema/version handling, CSV escaping, loan state, reading-date consistency, rating limits, statistics aggregation, audit redaction, and location/format invariants.
+- Integration-test registration/default-library creation, user authentication, environment-based admin bootstrap, one-time first-start admin setup, setup-route shutdown, administrator authentication, rejection of partial bootstrap configuration, library ownership and sharing roles, cross-user access denial, book CRUD, settings persistence, tag deletion rules, transactional import and rollback, duplicate conflict handling, lending/return history, statistics authorization, required audit-event creation, and account disabling against a test database.
 - Mock Kyobo responses for parser contract tests, including valid results, changed/missing markup, timeout, rate limiting, malformed data, and no-result cases. Do not make live Kyobo requests in the normal test suite.
 - Component-test important forms, filters, list/grid preferences, accessible error messages, and camera/manual-entry fallbacks.
-- Add Playwright flows for registration and sign-in, initial administrator setup, separate administrator sign-in, creating and sharing a library, editor versus viewer permissions, adding/editing/searching a book, changing display settings, and administrator access control at desktop and mobile viewport sizes.
+- Add Playwright flows for registration and sign-in, initial administrator setup, separate administrator sign-in, creating and sharing a library, editor versus viewer permissions, adding/editing/searching a book, changing display settings, JSON/CSV export and import preview, lending and returning a book, recording reading dates and a rating, viewing statistics/audit history, and administrator access control at desktop and mobile viewport sizes.
 - Run formatting, linting, type checking, unit/integration tests, a production build, and browser tests before considering the task complete.
 
 ## Acceptance criteria
@@ -56,6 +62,9 @@ Build a responsive personal book-management web application where users can regi
 - Books support the requested metadata, ownership and reading states, physical/ebook distinction, physical location tags, and personal comments.
 - The main library supports internal search, filters, list/grid layouts, and per-library display preferences on desktop and mobile.
 - Users can search Kyobo by keyword, look up or scan an ISBN, review the candidate, and add it, with manual entry available if lookup or camera access fails.
+- Library owners can export a lossless JSON backup or spreadsheet-friendly CSV and safely preview/import supported files without leaking account or sharing data.
+- Users can track current and completed physical-book loans, reading dates, and ratings, and can view authorized collection and reading statistics.
+- Owners can review audited sharing, import, and destructive library actions; administrators can review audited system actions; sensitive credentials and comments never enter audit summaries.
 - The initial administrator can be created once from complete environment credentials or through the token-protected first-start setup; the setup path cannot create another administrator afterward.
 - Administrator credentials and sessions are separate from users. Every registered user remains a `USER` and cannot be promoted or use an administrator-only endpoint.
 - Administrators can access the protected user-management screen, while users cannot.
@@ -63,11 +72,5 @@ Build a responsive personal book-management web application where users can regi
 
 ## Out of scope
 
-- Email verification, password reset, social login, public libraries, lending workflows, recommendations, ratings, native mobile applications, and image hosting are deferred.
+- Email verification, password reset, social login, public libraries, recommendations, native mobile applications, and image hosting are deferred.
 - Automated circumvention of Kyobo anti-bot protections is not permitted. If stable access cannot be implemented within Kyobo's terms and technical constraints, retain the provider boundary and ship manual entry plus ISBN validation while documenting the limitation.
-
-## Follow-up suggestions
-
-- Add CSV/JSON import and export so users can back up or migrate personal collections.
-- Add audit history for sharing and destructive actions before expanding administrator capabilities.
-- Add optional lending records, reading dates, ratings, and statistics only after the core ownership and permission flows are stable.
