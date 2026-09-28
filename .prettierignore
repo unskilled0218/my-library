@@ -6,4 +6,5 @@ test-results
 prisma/schema.prisma
 prisma/migrations
 .env.example
+next-env.d.ts
 tasks

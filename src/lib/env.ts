@@ -5,6 +5,7 @@ const schema = z
     DATABASE_URL: z.string().min(1),
     SESSION_SECRET: z.string().min(32),
     COVER_STORAGE_PATH: z.string().min(1).default('./covers'),
+    ALLOWED_DEV_ORIGINS: z.string().optional(),
     ADMIN_ID: z.string().trim().min(3).optional(),
     ADMIN_PASSWORD: z.string().min(12).optional(),
   })

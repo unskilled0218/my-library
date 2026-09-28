@@ -5,9 +5,10 @@ A responsive personal book-management service for private and shared libraries. 
 ## Run with Docker Compose
 
 1. Copy `.env.example` to `.env` and replace `SESSION_SECRET` with at least 32 random characters.
-2. Optionally set both `ADMIN_ID` and `ADMIN_PASSWORD` to create the first administrator non-interactively.
-3. Run `docker compose up`.
-4. Open `http://localhost:3000`.
+2. Set `ALLOWED_DEV_ORIGINS` to the comma-separated hostnames used to access the development server, such as `dev.lan,localhost`.
+3. Optionally set both `ADMIN_ID` and `ADMIN_PASSWORD` to create the first administrator non-interactively.
+4. Run `docker compose up`.
+5. Open `http://localhost:3000`.
 
 If no administrator environment credentials are present, the server prints a short-lived `/admin/setup?token=...` URL once the database is ready. The setup route closes permanently after the first administrator is created.
 
