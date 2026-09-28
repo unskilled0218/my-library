@@ -15,8 +15,8 @@ Move library creation before the library cards and make the book-library control
 
 1. Move the existing create-library form in `src/app/libraries/page.tsx` so it appears immediately after the `Your libraries` heading block and before the library-card grid. Preserve the current server action, fields, validation, and responsive form layout; adjust vertical spacing so the form and card grid remain visually distinct.
 2. Extract the library search and filter form into a focused client component, for example `src/components/library-search-controls.tsx`. Pass the current query values, location tags, and genre options from the server page rather than fetching them again on the client.
-3. Render the keyword input and a submit button labeled `Search` in one horizontal row at all supported widths where space permits, with sensible mobile wrapping if necessary. Keep the form as a GET submission so the existing server-side title, author, genre, description, ISBN, and comment search remains authoritative.
-4. Add a `Filter` disclosure button beside or directly below the search row. Filters for reading state, format, ownership, location, and genre must be hidden on initial render.
+3. Render the keyword input, a submit button labeled `Search`, and the `Filter` disclosure button in one horizontal row in that exact order, with `Filter` immediately to the right of `Search`. Keep both buttons grouped together if the row must wrap on a narrow mobile viewport. Keep the form as a GET submission so the existing server-side title, author, genre, description, ISBN, and comment search remains authoritative.
+4. Filters for reading state, format, ownership, location, and genre must be hidden on initial render. Clicking the `Filter` button at the right side of `Search` reveals them below the search row.
 5. Manage filter visibility with component-local state only. Clicking `Filter` reveals the filter controls directly below the search row; clicking a visible `Hide filters` button collapses them. Do not persist disclosure state in the URL, database, local storage, or session storage, so leaving or refreshing the library page resets the menu to hidden.
 6. Keep filter inputs inside the same GET form as the search input so clicking `Search` submits the keyword and currently selected filter values together. Preserve current query values as defaults after a submitted search and keep pagination links carrying the active search/filter query.
 7. Extract the list/grid selector and rendered book collection into a client component, for example `src/components/library-book-list.tsx`. Initialize its local view state from the library display setting supplied by the server and render the existing `BookCard` components from serializable book/display props.
@@ -37,7 +37,7 @@ Move library creation before the library cards and make the book-library control
 ## Acceptance criteria
 
 - The create-library form is directly below `Your libraries` and above all library cards.
-- Library book search has a keyword input and `Search` button presented as one row.
+- Library book search presents the keyword input, `Search`, and then `Filter` in one row, with `Filter` immediately to the right of `Search`.
 - Filters are hidden by default, appear below the search row after clicking `Filter`, remain visible during client-side interaction, and can be collapsed with `Hide filters`.
 - Refreshing or leaving the library page resets the filter menu to hidden without clearing submitted filter values from the URL.
 - Grid/list controls change only the rendered book layout. They do not navigate, refresh server data, alter the URL, or move the page scroll position.
