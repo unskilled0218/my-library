@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { requireLibraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -65,10 +66,20 @@ export default async function StatsPage({
       id={`library-stats-page-${id}`}
       className="mx-auto max-w-6xl px-5 py-12 md:px-8"
     >
-      <p className="eyebrow">Collection health</p>
-      <h1 className="mt-2 font-serif text-5xl font-black">
-        Library statistics
-      </h1>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Collection health</p>
+          <h1 className="mt-2 font-serif text-5xl font-black">
+            Library statistics
+          </h1>
+        </div>
+        <Link
+          className="button button-secondary"
+          href={`/libraries/${id}/settings`}
+        >
+          Back to settings
+        </Link>
+      </div>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map(([label, number]) => (
           <div className="panel" key={label}>

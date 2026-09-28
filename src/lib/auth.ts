@@ -35,10 +35,10 @@ export async function createUser(loginIdInput: string, passwordInput: string) {
     data: {
       loginId,
       passwordHash,
+      settings: { create: {} },
       libraries: {
         create: {
           name: 'My library',
-          settings: { create: {} },
         },
       },
     },

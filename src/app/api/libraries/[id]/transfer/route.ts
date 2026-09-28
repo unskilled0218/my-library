@@ -7,67 +7,15 @@ import {
   ReadingState,
 } from '@prisma/client'
 import Papa from 'papaparse'
-import { z } from 'zod'
 import { requireLibraryAccess } from '@/lib/access'
 import { currentUser } from '@/lib/auth'
 import { getEnv } from '@/lib/env'
 import { saveCoverData, removeCover } from '@/lib/covers'
 import { db } from '@/lib/db'
 import { upsertGenrePaths } from '@/lib/genres'
-import { kyoboBookUrlSchema, kyoboGenreUrlSchema } from '@/lib/validation'
+import { backupSchema, type ImportBook } from '@/lib/transfer-schema'
 
 const MAX_IMPORT_BYTES = 10 * 1024 * 1024
-const genrePathSchema = z
-  .array(
-    z.object({ name: z.string().min(1).max(100), url: kyoboGenreUrlSchema }),
-  )
-  .min(1)
-const bookSchema = z.object({
-  title: z.string().min(1).max(300),
-  authors: z.array(z.string().min(1).max(120)).min(1),
-  description: z.string().max(5_000).default(''),
-  isbn10: z.string().nullable().optional(),
-  isbn13: z.string().nullable().optional(),
-  sourceUrl: kyoboBookUrlSchema,
-  format: z.enum(['PHYSICAL', 'EBOOK']).default('PHYSICAL'),
-  ownershipState: z.enum(['HAVE', 'DONT_HAVE']).default('HAVE'),
-  readingState: z
-    .enum(['NOT_STARTED', 'READING', 'DONE'])
-    .default('NOT_STARTED'),
-  readingStartedAt: z.string().datetime().nullable().optional(),
-  readingFinishedAt: z.string().datetime().nullable().optional(),
-  rating: z.number().int().min(1).max(5).nullable().optional(),
-  comment: z.string().max(10_000).default(''),
-  location: z.string().max(80).nullable().optional(),
-  genrePaths: z.array(genrePathSchema).min(1),
-  cover: z
-    .object({
-      mime: z.enum(['image/jpeg', 'image/png', 'image/webp']),
-      base64: z.string().max(7_000_000),
-    })
-    .nullable()
-    .optional(),
-})
-const settingsSchema = z.object({
-  defaultView: z.enum(['LIST', 'GRID']),
-  showCover: z.boolean(),
-  showTitle: z.boolean(),
-  showAuthors: z.boolean(),
-  showGenre: z.boolean(),
-  showReading: z.boolean(),
-  showLocation: z.boolean(),
-})
-const backupSchema = z.object({
-  version: z.literal(1),
-  library: z.object({
-    name: z.string(),
-    description: z.string(),
-    locationTags: z.array(z.string().max(80)).default([]),
-    settings: settingsSchema.optional(),
-  }),
-  books: z.array(bookSchema).max(5_000),
-})
-type ImportBook = z.infer<typeof bookSchema>
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -101,8 +49,6 @@ export async function GET(request: Request, { params }: Params) {
   const library = await db.library.findUniqueOrThrow({
     where: { id },
     include: {
-      settings: true,
-      locationTags: true,
       books: { include: { genres: true, locationTag: true } },
     },
   })
@@ -167,12 +113,10 @@ export async function GET(request: Request, { params }: Params) {
   }
   return Response.json(
     {
-      version: 1,
+      version: 2,
       library: {
         name: library.name,
         description: library.description,
-        locationTags: library.locationTags.map((tag) => tag.name),
-        settings: library.settings,
       },
       books,
     },
@@ -209,8 +153,8 @@ export async function POST(request: Request, { params }: Params) {
         skipEmptyLines: true,
       })
       raw = {
-        version: 1,
-        library: { name: 'CSV import', description: '', locationTags: [] },
+        version: 2,
+        library: { name: 'CSV import', description: '' },
         books: parsed.data.map((row) => ({
           ...row,
           authors: row.authors?.split(';').map((item) => item.trim()),
@@ -230,7 +174,7 @@ export async function POST(request: Request, { params }: Params) {
   if (!result.success)
     return Response.json(
       {
-        error: 'The file does not match backup version 1',
+        error: 'The file does not match backup version 1 or 2',
         issues: result.error.issues.slice(0, 10),
       },
       { status: 400 },
@@ -275,33 +219,26 @@ export async function POST(request: Request, { params }: Params) {
       if (cover) writtenCovers.push(cover.key)
       prepared.push({ book, cover })
     }
+    const locationNames = new Set([
+      ...(result.data.version === 1 ? result.data.library.locationTags : []),
+      ...prepared.flatMap(({ book }) => (book.location ? [book.location] : [])),
+    ])
     await db.$transaction(
       async (tx) => {
-        for (const name of result.data.library.locationTags)
-          await tx.locationTag.upsert({
-            where: { libraryId_name: { libraryId: id, name } },
+        const locationIds = new Map<string, string>()
+        for (const name of locationNames) {
+          const location = await tx.locationTag.upsert({
+            where: { userId_name: { userId: user.id, name } },
             update: {},
-            create: { libraryId: id, name },
+            create: { userId: user.id, name },
           })
-        if (result.data.library.settings)
-          await tx.libraryDisplaySettings.upsert({
-            where: { libraryId: id },
-            update: result.data.library.settings,
-            create: { libraryId: id, ...result.data.library.settings },
-          })
+          locationIds.set(name, location.id)
+        }
         for (const { book, cover } of prepared) {
           const genreIds = await upsertGenrePaths(tx, book.genrePaths)
-          let locationTagId: string | undefined
-          if (book.location)
-            locationTagId = (
-              await tx.locationTag.upsert({
-                where: {
-                  libraryId_name: { libraryId: id, name: book.location },
-                },
-                update: {},
-                create: { libraryId: id, name: book.location },
-              })
-            ).id
+          const locationTagId = book.location
+            ? locationIds.get(book.location)
+            : undefined
           await tx.book.create({
             data: {
               libraryId: id,

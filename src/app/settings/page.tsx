@@ -1,0 +1,211 @@
+import {
+  addLocationAction,
+  changePasswordAction,
+  deleteLocationAction,
+  renameLocationAction,
+  updateDisplayAction,
+} from '@/app/actions'
+import { requireUser } from '@/lib/auth'
+import { db } from '@/lib/db'
+
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>
+}) {
+  const user = await requireUser()
+  const { error } = await searchParams
+  const [settings, locationTags] = await Promise.all([
+    db.userDisplaySettings.findUnique({ where: { userId: user.id } }),
+    db.locationTag.findMany({
+      where: { userId: user.id },
+      orderBy: { name: 'asc' },
+    }),
+  ])
+  const display = settings ?? {
+    defaultView: 'GRID',
+    showCover: true,
+    showTitle: true,
+    showAuthors: true,
+    showGenre: true,
+    showReading: true,
+    showLocation: false,
+  }
+
+  return (
+    <div
+      id="global-settings-page"
+      className="mx-auto max-w-6xl px-5 py-12 md:px-8"
+    >
+      <p className="eyebrow">General</p>
+      <h1 className="mt-2 font-serif text-5xl font-black">Settings</h1>
+      <p className="mt-3 max-w-2xl text-ink/60">
+        Account preferences apply across every library you use. Shelf tags are
+        shared by the libraries you own.
+      </p>
+      {error && (
+        <p
+          id="settings-error"
+          className="mt-6 rounded-xl bg-rust/10 p-3 text-sm text-rust"
+          role="alert"
+        >
+          {error}
+        </p>
+      )}
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <section id="account-settings" className="panel">
+          <p className="eyebrow">Account</p>
+          <h2 className="mt-2 font-serif text-3xl font-bold">Password</h2>
+          <p className="mt-3 text-sm text-ink/60">
+            Signed in as <strong className="text-ink">{user.loginId}</strong>.
+            Your login ID cannot be changed.
+          </p>
+          <form
+            id="change-password-form"
+            action={changePasswordAction}
+            className="mt-5 space-y-3"
+          >
+            <label className="block text-sm font-semibold">
+              Current password
+              <input
+                className="mt-1"
+                type="password"
+                name="currentPassword"
+                autoComplete="current-password"
+                required
+              />
+            </label>
+            <label className="block text-sm font-semibold">
+              New password
+              <input
+                className="mt-1"
+                type="password"
+                name="newPassword"
+                autoComplete="new-password"
+                minLength={12}
+                maxLength={128}
+                required
+              />
+            </label>
+            <label className="block text-sm font-semibold">
+              Confirm new password
+              <input
+                className="mt-1"
+                type="password"
+                name="confirmPassword"
+                autoComplete="new-password"
+                minLength={12}
+                maxLength={128}
+                required
+              />
+            </label>
+            <button type="submit">Change password</button>
+          </form>
+        </section>
+        <section id="library-display-settings" className="panel">
+          <p className="eyebrow">Display</p>
+          <h2 className="mt-2 font-serif text-3xl font-bold">Library view</h2>
+          <p className="mt-3 text-sm text-ink/60">
+            These choices apply whenever you open any library.
+          </p>
+          <form
+            id="display-settings-form"
+            action={updateDisplayAction}
+            className="mt-5 space-y-3"
+          >
+            <label className="block text-sm font-semibold">
+              Default layout
+              <select
+                className="mt-1"
+                name="defaultView"
+                defaultValue={display.defaultView}
+              >
+                <option value="GRID">Grid</option>
+                <option value="LIST">List</option>
+              </select>
+            </label>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {[
+                ['showCover', 'Cover'],
+                ['showTitle', 'Title'],
+                ['showAuthors', 'Authors'],
+                ['showGenre', 'Genre'],
+                ['showReading', 'Reading'],
+                ['showLocation', 'Location'],
+              ].map(([name, label]) => (
+                <label key={name} className="flex items-center gap-2">
+                  <input
+                    className="h-4 w-4"
+                    type="checkbox"
+                    name={name}
+                    defaultChecked={
+                      display[name as keyof typeof display] as boolean
+                    }
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <button type="submit">Save display</button>
+          </form>
+        </section>
+        <section id="shelf-tag-settings" className="panel lg:col-span-2">
+          <p className="eyebrow">Locations</p>
+          <h2 className="mt-2 font-serif text-3xl font-bold">Shelf tags</h2>
+          <p className="mt-3 text-sm text-ink/60">
+            One tag collection is available in every library you own.
+          </p>
+          <form
+            id="add-shelf-tag-form"
+            action={addLocationAction}
+            className="mt-5 flex flex-col gap-2 sm:flex-row"
+          >
+            <input name="name" required maxLength={80} placeholder="Study" />
+            <button className="shrink-0" type="submit">
+              Add shelf tag
+            </button>
+          </form>
+          <div className="mt-5 space-y-2">
+            {locationTags.map((tag) => (
+              <div
+                id={`shelf-tag-${tag.id}`}
+                key={tag.id}
+                className="flex flex-col gap-2 rounded-xl bg-ink/5 p-3 sm:flex-row"
+              >
+                <form
+                  action={renameLocationAction}
+                  className="flex min-w-0 flex-1 gap-2"
+                >
+                  <input type="hidden" name="tagId" value={tag.id} />
+                  <input
+                    name="name"
+                    defaultValue={tag.name}
+                    maxLength={80}
+                    required
+                    aria-label={`Rename ${tag.name}`}
+                  />
+                  <button className="button-secondary shrink-0" type="submit">
+                    Save
+                  </button>
+                </form>
+                <form action={deleteLocationAction}>
+                  <input type="hidden" name="tagId" value={tag.id} />
+                  <button
+                    className="button-secondary w-full sm:w-auto"
+                    type="submit"
+                    aria-label={`Delete ${tag.name}`}
+                  >
+                    Delete
+                  </button>
+                </form>
+              </div>
+            ))}
+            {locationTags.length === 0 && (
+              <p className="text-sm text-ink/60">No shelf tags yet.</p>
+            )}
+          </div>
+        </section>
+      </div>
+    </div>
+  )
+}

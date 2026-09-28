@@ -6,6 +6,7 @@ export function AuthForm({
   action,
   alternate,
   error,
+  success,
   token,
 }: {
   id: string
@@ -13,6 +14,7 @@ export function AuthForm({
   action: (form: FormData) => Promise<void>
   alternate?: { label: string; href: string }
   error?: string
+  success?: string
   token?: string
 }) {
   return (
@@ -26,6 +28,14 @@ export function AuthForm({
             role="alert"
           >
             {error}
+          </p>
+        )}
+        {success && (
+          <p
+            className="mt-4 rounded-xl bg-moss/10 p-3 text-sm text-moss"
+            role="status"
+          >
+            {success}
           </p>
         )}
         <form id={`${id}-form`} action={action} className="mt-8 space-y-4">

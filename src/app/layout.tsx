@@ -36,8 +36,8 @@ export default async function RootLayout({
                   <span className="hidden text-ink/60 sm:inline">
                     {user.loginId}
                   </span>
-                  <Link className="button button-secondary" href="/libraries">
-                    Libraries
+                  <Link className="button button-secondary" href="/settings">
+                    Settings
                   </Link>
                   <form action={logoutAction}>
                     <button type="submit">Sign out</button>

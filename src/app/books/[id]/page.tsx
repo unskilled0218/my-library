@@ -27,7 +27,7 @@ export default async function BookPage({
   const canWrite = access === 'OWNER' || access === 'EDITOR'
   const locations = canWrite
     ? await db.locationTag.findMany({
-        where: { libraryId: book.libraryId },
+        where: { userId: book.library.ownerId },
         orderBy: { name: 'asc' },
       })
     : []

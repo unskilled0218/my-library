@@ -1,7 +1,7 @@
 'use server'
 
 import { randomBytes } from 'node:crypto'
-import { hash } from 'bcryptjs'
+import { compare, hash } from 'bcryptjs'
 import {
   ActorType,
   BookFormat,
@@ -13,6 +13,7 @@ import {
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireBookAccess, requireLibraryAccess } from '@/lib/access'
+import { passwordChangeError } from '@/lib/account'
 import {
   currentAdmin,
   requireAdmin,
@@ -87,6 +88,37 @@ export async function adminLogoutAction() {
   redirect('/admin/login')
 }
 
+export async function changePasswordAction(form: FormData) {
+  const user = await requireUser()
+  const currentPassword = value(form, 'currentPassword')
+  const newPassword = value(form, 'newPassword')
+  const confirmation = value(form, 'confirmPassword')
+  assertRateLimit(`password-change:${user.id}`, 5, 10 * 60_000)
+  const inputError = passwordChangeError({
+    currentMatches: true,
+    newMatchesCurrent: false,
+    newPassword,
+    confirmation,
+  })
+  if (inputError) redirect(`/settings?error=${encodeURIComponent(inputError)}`)
+  const error = passwordChangeError({
+    currentMatches: await compare(currentPassword, user.passwordHash),
+    newMatchesCurrent: await compare(newPassword, user.passwordHash),
+    newPassword,
+    confirmation,
+  })
+  if (error) redirect(`/settings?error=${encodeURIComponent(error)}`)
+  await db.$transaction([
+    db.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await hash(newPassword, 12) },
+    }),
+    db.userSession.deleteMany({ where: { userId: user.id } }),
+  ])
+  await signOut('user')
+  redirect('/login?success=Password+changed.+Sign+in+again')
+}
+
 export async function setupAdminAction(form: FormData) {
   const rawToken = value(form, 'token')
   const loginId = loginIdSchema.parse(value(form, 'loginId'))
@@ -134,7 +166,6 @@ export async function createLibraryAction(form: FormData) {
       ownerId: user.id,
       name,
       description: value(form, 'description').slice(0, 500),
-      settings: { create: {} },
     },
   })
   revalidatePath('/libraries')
@@ -153,6 +184,8 @@ export async function updateLibraryAction(form: FormData) {
     },
   })
   revalidatePath(`/libraries/${libraryId}`)
+  revalidatePath(`/libraries/${libraryId}/settings`)
+  revalidatePath('/libraries')
 }
 
 export async function deleteLibraryAction(form: FormData) {
@@ -210,6 +243,7 @@ export async function shareLibraryAction(form: FormData) {
     }),
   ])
   revalidatePath(`/libraries/${libraryId}`)
+  revalidatePath(`/libraries/${libraryId}/settings`)
 }
 
 export async function removeMemberAction(form: FormData) {
@@ -234,61 +268,84 @@ export async function removeMemberAction(form: FormData) {
     }),
   ])
   revalidatePath(`/libraries/${libraryId}`)
+  revalidatePath(`/libraries/${libraryId}/settings`)
 }
 
 export async function addLocationAction(form: FormData) {
   const user = await requireUser()
-  const libraryId = value(form, 'libraryId')
-  await requireLibraryAccess(user, libraryId, 'WRITE')
+  const name = value(form, 'name').slice(0, 80)
+  if (!name) throw new Error('Shelf tag name is required')
+  if (
+    await db.locationTag.findUnique({
+      where: { userId_name: { userId: user.id, name } },
+    })
+  )
+    throw new Error('Shelf tag already exists')
   await db.locationTag.create({
-    data: { libraryId, name: value(form, 'name').slice(0, 80) },
+    data: { userId: user.id, name },
   })
-  revalidatePath(`/libraries/${libraryId}`)
+  revalidatePath('/settings')
+  revalidatePath('/libraries', 'layout')
 }
 
 export async function deleteLocationAction(form: FormData) {
   const user = await requireUser()
-  const libraryId = value(form, 'libraryId')
-  await requireLibraryAccess(user, libraryId, 'WRITE')
   const tagId = value(form, 'tagId')
-  if ((await db.book.count({ where: { locationTagId: tagId, libraryId } })) > 0)
+  const tag = await db.locationTag.findFirst({
+    where: { id: tagId, userId: user.id },
+  })
+  if (!tag) throw new Error('Shelf tag not found')
+  if ((await db.book.count({ where: { locationTagId: tagId } })) > 0)
     throw new Error('Location is still in use')
-  await db.locationTag.delete({ where: { id: tagId, libraryId } })
-  revalidatePath(`/libraries/${libraryId}`)
+  await db.locationTag.delete({ where: { id: tagId } })
+  revalidatePath('/settings')
+  revalidatePath('/libraries', 'layout')
 }
 
 export async function renameLocationAction(form: FormData) {
   const user = await requireUser()
-  const libraryId = value(form, 'libraryId')
-  await requireLibraryAccess(user, libraryId, 'WRITE')
-  await db.locationTag.update({
-    where: { id: value(form, 'tagId'), libraryId },
-    data: { name: value(form, 'name').slice(0, 80) },
+  const tagId = value(form, 'tagId')
+  const name = value(form, 'name').slice(0, 80)
+  if (!name) throw new Error('Shelf tag name is required')
+  const tag = await db.locationTag.findFirst({
+    where: { id: tagId, userId: user.id },
   })
-  revalidatePath(`/libraries/${libraryId}`)
+  if (!tag) throw new Error('Shelf tag not found')
+  if (
+    await db.locationTag.findFirst({
+      where: { userId: user.id, name, id: { not: tagId } },
+    })
+  )
+    throw new Error('Shelf tag already exists')
+  await db.locationTag.update({
+    where: { id: tagId },
+    data: { name },
+  })
+  revalidatePath('/settings')
+  revalidatePath('/libraries', 'layout')
 }
 
 export async function updateDisplayAction(form: FormData) {
   const user = await requireUser()
-  const libraryId = value(form, 'libraryId')
-  await requireLibraryAccess(user, libraryId, 'WRITE')
-  await db.libraryDisplaySettings.upsert({
-    where: { libraryId },
-    create: { libraryId },
-    update: {
-      defaultView:
-        value(form, 'defaultView') === 'LIST'
-          ? LibraryView.LIST
-          : LibraryView.GRID,
-      showCover: form.has('showCover'),
-      showTitle: form.has('showTitle'),
-      showAuthors: form.has('showAuthors'),
-      showGenre: form.has('showGenre'),
-      showReading: form.has('showReading'),
-      showLocation: form.has('showLocation'),
-    },
+  const settings = {
+    defaultView:
+      value(form, 'defaultView') === 'LIST'
+        ? LibraryView.LIST
+        : LibraryView.GRID,
+    showCover: form.has('showCover'),
+    showTitle: form.has('showTitle'),
+    showAuthors: form.has('showAuthors'),
+    showGenre: form.has('showGenre'),
+    showReading: form.has('showReading'),
+    showLocation: form.has('showLocation'),
+  }
+  await db.userDisplaySettings.upsert({
+    where: { userId: user.id },
+    create: { userId: user.id, ...settings },
+    update: settings,
   })
-  revalidatePath(`/libraries/${libraryId}`)
+  revalidatePath('/settings')
+  revalidatePath('/libraries', 'layout')
 }
 
 export async function addKyoboBookAction(form: FormData) {
@@ -416,10 +473,14 @@ export async function updateBookAction(form: FormData) {
     format === BookFormat.PHYSICAL && value(form, 'locationTagId')
       ? value(form, 'locationTagId')
       : null
+  const library = await db.library.findUniqueOrThrow({
+    where: { id: libraryId },
+    select: { ownerId: true },
+  })
   if (
     locationTagId &&
     !(await db.locationTag.findFirst({
-      where: { id: locationTagId, libraryId },
+      where: { id: locationTagId, userId: library.ownerId },
     }))
   )
     throw new Error('Invalid location')

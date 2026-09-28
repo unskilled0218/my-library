@@ -51,6 +51,13 @@ npm run kyobo:probe -- 9791157107223
 npm run kyobo:probe -- "너의 췌장을 먹고 싶어"
 ```
 
+## Settings scope
+
+- Display preferences belong to the signed-in user and apply when that user views any owned or shared library.
+- Shelf tags belong to a library owner and are shared by all libraries that account owns. Editors can assign the owner's tags to books but cannot manage the owner's global tag collection.
+- Library-specific settings retain their existing permissions: statistics are readable by library members, while sharing, ownership, transfer, and audit controls are owner-only.
+- Version 2 library backups preserve book shelf assignments by name but do not contain account-wide display settings. Version 1 backups remain importable; their legacy display block is ignored.
+
 ## Security boundaries
 
 - User and administrator credentials and database sessions use separate tables and cookies. A user can never be promoted to administrator.

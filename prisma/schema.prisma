@@ -40,15 +40,17 @@ enum ActorType {
 }
 
 model User {
-  id           String          @id @default(cuid())
-  loginId      String          @unique
+  id           String               @id @default(cuid())
+  loginId      String               @unique
   passwordHash String
   disabledAt   DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
   libraries    Library[]
   memberships  LibraryMember[]
   sessions     UserSession[]
+  settings     UserDisplaySettings?
+  locationTags LocationTag[]
 }
 
 model Admin {
@@ -93,18 +95,16 @@ model AdminSetupToken {
 }
 
 model Library {
-  id           String                  @id @default(cuid())
-  name         String
-  description  String                  @default("")
-  createdAt    DateTime                @default(now())
-  updatedAt    DateTime                @updatedAt
-  ownerId      String
-  owner        User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  members      LibraryMember[]
-  books        Book[]
-  locationTags LocationTag[]
-  settings     LibraryDisplaySettings?
-  auditLogs    AuditLog[]
+  id          String          @id @default(cuid())
+  name        String
+  description String          @default("")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  ownerId     String
+  owner       User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members     LibraryMember[]
+  books       Book[]
+  auditLogs   AuditLog[]
 
   @@index([ownerId])
 }
@@ -123,7 +123,7 @@ model LibraryMember {
   @@index([userId])
 }
 
-model LibraryDisplaySettings {
+model UserDisplaySettings {
   id           String      @id @default(cuid())
   defaultView  LibraryView @default(GRID)
   showCover    Boolean     @default(true)
@@ -132,8 +132,8 @@ model LibraryDisplaySettings {
   showGenre    Boolean     @default(true)
   showReading  Boolean     @default(true)
   showLocation Boolean     @default(false)
-  libraryId    String      @unique
-  library      Library     @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  userId       String      @unique
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Genre {
@@ -198,11 +198,11 @@ model LocationTag {
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  libraryId String
-  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   books     Book[]
 
-  @@unique([libraryId, name])
+  @@unique([userId, name])
 }
 
 model AuditLog {

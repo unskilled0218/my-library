@@ -13,14 +13,14 @@ async function main() {
     create: {
       loginId: 'reader',
       passwordHash,
+      settings: { create: {} },
+      locationTags: {
+        create: [{ name: 'Living room' }, { name: 'Study' }],
+      },
       libraries: {
         create: {
           name: 'My library',
           description: 'A quiet place for books worth keeping.',
-          settings: { create: {} },
-          locationTags: {
-            create: [{ name: 'Living room' }, { name: 'Study' }],
-          },
         },
       },
     },

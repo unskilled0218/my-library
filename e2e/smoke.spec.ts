@@ -81,4 +81,53 @@ test('a user can register and receives a default library', async ({ page }) => {
     scrollY: window.scrollY,
   }))
   expect(afterViewChange).toEqual(beforeViewChange)
+
+  const siteNavigation = page.locator('#site-navigation')
+  await expect(
+    siteNavigation.getByRole('link', { name: 'Settings' }),
+  ).toBeVisible()
+  await expect(
+    siteNavigation.getByRole('link', { name: 'Libraries' }),
+  ).toHaveCount(0)
+  await siteNavigation.getByRole('link', { name: 'Settings' }).click()
+  await expect(page).toHaveURL(/\/settings$/)
+  await expect(page.locator('#change-password-form')).toBeVisible()
+  await expect(page.getByLabel('Current password')).toBeVisible()
+  await expect(page.getByLabel('New password', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Confirm new password')).toBeVisible()
+
+  await page.locator('#add-shelf-tag-form input[name="name"]').fill('Study')
+  await page.getByRole('button', { name: 'Add shelf tag' }).click()
+  await expect(page.getByLabel('Rename Study')).toHaveValue('Study')
+  await page.getByLabel('Default layout').selectOption('LIST')
+  await page.getByRole('button', { name: 'Save display' }).click()
+
+  await page.getByRole('link', { name: 'MY / LIBRARY' }).click()
+  await page
+    .locator('#library-create-form input[name="name"]')
+    .fill('Second library')
+  await page.getByRole('button', { name: 'Create library' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Second library' }),
+  ).toBeVisible()
+  await expect(page.locator('#library-book-list')).toHaveAttribute(
+    'data-view',
+    'LIST',
+  )
+  await page.locator('#library-filter-toggle').click()
+  await expect(page.getByLabel('Location')).toContainText('Study')
+  await expect(page.locator('#library-editor-settings')).toHaveCount(0)
+  await expect(page.locator('#library-owner-settings')).toHaveCount(0)
+
+  await page.locator('#library-settings-link').click()
+  await expect(
+    page.getByRole('heading', { name: 'Library settings' }),
+  ).toBeVisible()
+  await expect(page.getByRole('link', { name: /Statistics/ })).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: /Import \/ export/ }),
+  ).toBeVisible()
+  await expect(page.getByRole('link', { name: /Audit log/ })).toBeVisible()
+  await expect(page.locator('#library-sharing-settings')).toBeVisible()
+  await expect(page.locator('#library-ownership-settings')).toBeVisible()
 })
