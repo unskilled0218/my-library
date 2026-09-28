@@ -16,7 +16,7 @@ export default async function LibrariesPage() {
     orderBy: { updatedAt: 'desc' },
   })
   return (
-    <div className="mx-auto max-w-7xl px-5 py-12 md:px-8">
+    <div id="libraries-page" className="mx-auto max-w-7xl px-5 py-12 md:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow">Collections</p>

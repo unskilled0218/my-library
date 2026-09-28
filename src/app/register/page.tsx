@@ -9,6 +9,7 @@ export default async function RegisterPage({
   const { error } = await searchParams
   return (
     <AuthForm
+      id="registration-page"
       title="Register freely"
       action={registerAction}
       error={error}

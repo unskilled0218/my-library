@@ -43,7 +43,7 @@ export function IsbnScanner() {
   }
 
   return (
-    <div className="rounded-2xl bg-ink/5 p-4">
+    <div id="isbn-scanner" className="rounded-2xl bg-ink/5 p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="font-semibold">Scan an ISBN barcode</p>

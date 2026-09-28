@@ -9,6 +9,7 @@ export default async function AdminLoginPage({
   const { error } = await searchParams
   return (
     <AuthForm
+      id="admin-login-page"
       title="Administrator sign in"
       action={adminLoginAction}
       error={error}

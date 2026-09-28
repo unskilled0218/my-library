@@ -118,8 +118,14 @@ export default async function LibraryPage({
     showLocation: false,
   }
   return (
-    <div className="mx-auto max-w-7xl px-5 py-10 md:px-8">
-      <div className="flex flex-wrap items-start justify-between gap-5">
+    <div
+      id={`library-page-${id}`}
+      className="mx-auto max-w-7xl px-5 py-10 md:px-8"
+    >
+      <div
+        id="library-header"
+        className="flex flex-wrap items-start justify-between gap-5"
+      >
         <div>
           <p className="eyebrow">{access} access</p>
           <h1 className="mt-2 font-serif text-5xl font-black">
@@ -157,7 +163,10 @@ export default async function LibraryPage({
           )}
         </div>
       </div>
-      <form className="panel mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <form
+        id="library-filters"
+        className="panel mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+      >
         <input
           name="q"
           defaultValue={query.q}
@@ -212,6 +221,7 @@ export default async function LibraryPage({
         </Link>
       </div>
       <div
+        id="library-book-list"
         className={`mt-6 grid gap-5 ${view === 'GRID' ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}
       >
         {library.books.map((book) => (
@@ -247,8 +257,11 @@ export default async function LibraryPage({
         </nav>
       )}
       {canWrite && (
-        <section className="mt-14 grid gap-6 lg:grid-cols-2">
-          <div className="panel">
+        <section
+          id="library-editor-settings"
+          className="mt-14 grid gap-6 lg:grid-cols-2"
+        >
+          <div id="library-location-settings" className="panel">
             <p className="eyebrow">Locations</p>
             <h2 className="mt-2 font-serif text-3xl font-bold">Shelf tags</h2>
             <form action={addLocationAction} className="mt-5 flex gap-2">
@@ -287,7 +300,7 @@ export default async function LibraryPage({
               ))}
             </div>
           </div>
-          <div className="panel">
+          <div id="library-display-settings" className="panel">
             <p className="eyebrow">Display</p>
             <h2 className="mt-2 font-serif text-3xl font-bold">Library view</h2>
             <form action={updateDisplayAction} className="mt-5 space-y-3">
@@ -329,8 +342,11 @@ export default async function LibraryPage({
         </section>
       )}
       {access === 'OWNER' && (
-        <section className="mt-6 grid gap-6 lg:grid-cols-2">
-          <div className="panel">
+        <section
+          id="library-owner-settings"
+          className="mt-6 grid gap-6 lg:grid-cols-2"
+        >
+          <div id="library-sharing-settings" className="panel">
             <p className="eyebrow">Sharing</p>
             <h2 className="mt-2 font-serif text-3xl font-bold">Members</h2>
             <form
@@ -367,7 +383,7 @@ export default async function LibraryPage({
               ))}
             </div>
           </div>
-          <div className="panel">
+          <div id="library-details-settings" className="panel">
             <p className="eyebrow">Ownership</p>
             <h2 className="mt-2 font-serif text-3xl font-bold">
               Library settings

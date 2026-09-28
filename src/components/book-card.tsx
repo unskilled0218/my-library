@@ -34,6 +34,7 @@ export function BookCard({
 }) {
   return (
     <Link
+      id={`book-card-${book.id}`}
       href={`/books/${book.id}`}
       className={`group overflow-hidden rounded-2xl border border-ink/10 bg-white/80 shadow-sm transition hover:-translate-y-1 hover:shadow-card ${view === 'LIST' ? 'flex min-h-44' : 'block'}`}
     >

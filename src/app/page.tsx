@@ -2,8 +2,11 @@ import Link from 'next/link'
 
 export default function Home() {
   return (
-    <div className="mx-auto grid min-h-[calc(100vh-73px)] max-w-7xl items-center gap-12 px-5 py-16 md:grid-cols-[1.2fr_0.8fr] md:px-8">
-      <section>
+    <div
+      id="home-page"
+      className="mx-auto grid min-h-[calc(100vh-73px)] max-w-7xl items-center gap-12 px-5 py-16 md:grid-cols-[1.2fr_0.8fr] md:px-8"
+    >
+      <section id="home-hero">
         <p className="eyebrow">Your shelves, remembered</p>
         <h1 className="mt-5 max-w-4xl font-serif text-6xl font-black leading-[0.95] tracking-[-0.04em] md:text-8xl">
           Every book has a place and a story.
@@ -22,7 +25,10 @@ export default function Home() {
           </Link>
         </div>
       </section>
-      <aside className="relative mx-auto aspect-[4/5] w-full max-w-md overflow-hidden rounded-[2.5rem] bg-moss p-8 text-paper shadow-card">
+      <aside
+        id="home-feature-card"
+        className="relative mx-auto aspect-[4/5] w-full max-w-md overflow-hidden rounded-[2.5rem] bg-moss p-8 text-paper shadow-card"
+      >
         <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full border-[28px] border-gold/70" />
         <p className="eyebrow !text-gold">Currently reading</p>
         <div className="mt-28 border-l-2 border-gold pl-6">

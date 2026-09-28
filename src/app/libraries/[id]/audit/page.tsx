@@ -16,7 +16,10 @@ export default async function AuditPage({
     take: 100,
   })
   return (
-    <div className="mx-auto max-w-4xl px-5 py-12">
+    <div
+      id={`library-audit-page-${id}`}
+      className="mx-auto max-w-4xl px-5 py-12"
+    >
       <p className="eyebrow">Immutable history</p>
       <h1 className="mt-2 font-serif text-5xl font-black">Audit log</h1>
       <div className="panel mt-8 divide-y divide-ink/10">

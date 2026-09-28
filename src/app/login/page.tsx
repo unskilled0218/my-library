@@ -9,6 +9,7 @@ export default async function LoginPage({
   const { error } = await searchParams
   return (
     <AuthForm
+      id="user-login-page"
       title="Welcome back"
       action={userLoginAction}
       error={error}

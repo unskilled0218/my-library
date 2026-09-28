@@ -11,6 +11,7 @@ export default async function AdminSetupPage({
   const { token = '', error } = await searchParams
   return (
     <AuthForm
+      id="admin-setup-page"
       title="Create initial administrator"
       action={setupAdminAction}
       token={token}

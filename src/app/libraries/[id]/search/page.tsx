@@ -21,7 +21,10 @@ export default async function SearchPage({
     ? await getKyoboBook(selected).catch(() => null)
     : null
   return (
-    <div className="mx-auto max-w-6xl px-5 py-12 md:px-8">
+    <div
+      id={`kyobo-search-page-${id}`}
+      className="mx-auto max-w-6xl px-5 py-12 md:px-8"
+    >
       <p className="eyebrow">Add a book</p>
       <h1 className="mt-2 font-serif text-5xl font-black">Search Kyobo</h1>
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_340px]">

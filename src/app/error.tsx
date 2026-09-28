@@ -7,7 +7,7 @@ export default function ErrorPage({
   reset: () => void
 }) {
   return (
-    <div className="mx-auto max-w-xl px-5 py-28 text-center">
+    <div id="error-page" className="mx-auto max-w-xl px-5 py-28 text-center">
       <p className="eyebrow">Something went wrong</p>
       <h1 className="mt-3 font-serif text-5xl font-black">
         The bookmark slipped.

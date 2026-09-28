@@ -16,8 +16,14 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body>
-        <header className="border-b border-ink/10 bg-paper/90 backdrop-blur">
-          <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
+        <header
+          id="site-header"
+          className="border-b border-ink/10 bg-paper/90 backdrop-blur"
+        >
+          <nav
+            id="site-navigation"
+            className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8"
+          >
             <Link
               href={user ? '/libraries' : '/'}
               className="font-serif text-2xl font-black tracking-tight"
@@ -59,7 +65,7 @@ export default async function RootLayout({
             </div>
           </nav>
         </header>
-        <main>{children}</main>
+        <main id="app-content">{children}</main>
       </body>
     </html>
   )

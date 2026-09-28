@@ -35,7 +35,7 @@ export function ImportPanel({ libraryId }: { libraryId: string }) {
   }
 
   return (
-    <div>
+    <div id="library-import-panel">
       <input
         type="file"
         accept=".json,.csv,application/json,text/csv"

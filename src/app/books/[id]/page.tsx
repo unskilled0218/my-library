@@ -32,7 +32,10 @@ export default async function BookPage({
       })
     : []
   return (
-    <div className="mx-auto max-w-6xl px-5 py-12 md:px-8">
+    <div
+      id={`book-page-${id}`}
+      className="mx-auto max-w-6xl px-5 py-12 md:px-8"
+    >
       <div className="grid gap-10 md:grid-cols-[300px_1fr]">
         <div>
           {book.coverKey ? (
@@ -72,6 +75,7 @@ export default async function BookPage({
           </div>
           {canWrite && (
             <form
+              id={`book-edit-form-${id}`}
               action={updateBookAction}
               className="panel mt-8 grid gap-4 sm:grid-cols-2"
             >

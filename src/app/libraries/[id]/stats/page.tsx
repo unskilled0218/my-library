@@ -61,7 +61,10 @@ export default async function StatsPage({
     ],
   ] as const
   return (
-    <div className="mx-auto max-w-6xl px-5 py-12 md:px-8">
+    <div
+      id={`library-stats-page-${id}`}
+      className="mx-auto max-w-6xl px-5 py-12 md:px-8"
+    >
       <p className="eyebrow">Collection health</p>
       <h1 className="mt-2 font-serif text-5xl font-black">
         Library statistics

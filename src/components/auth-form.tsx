@@ -1,12 +1,14 @@
 import Link from 'next/link'
 
 export function AuthForm({
+  id,
   title,
   action,
   alternate,
   error,
   token,
 }: {
+  id: string
   title: string
   action: (form: FormData) => Promise<void>
   alternate?: { label: string; href: string }
@@ -14,7 +16,7 @@ export function AuthForm({
   token?: string
 }) {
   return (
-    <div className="mx-auto max-w-md px-5 py-20">
+    <div id={id} className="mx-auto max-w-md px-5 py-20">
       <div className="panel">
         <p className="eyebrow">My Library</p>
         <h1 className="mt-3 font-serif text-4xl font-bold">{title}</h1>
@@ -26,7 +28,7 @@ export function AuthForm({
             {error}
           </p>
         )}
-        <form action={action} className="mt-8 space-y-4">
+        <form id={`${id}-form`} action={action} className="mt-8 space-y-4">
           {token !== undefined && (
             <input type="hidden" name="token" value={token} />
           )}

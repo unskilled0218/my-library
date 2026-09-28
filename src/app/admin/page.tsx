@@ -23,7 +23,10 @@ export default async function AdminPage({
     }),
   ])
   return (
-    <div className="mx-auto max-w-7xl px-5 py-12 md:px-8">
+    <div
+      id="admin-dashboard-page"
+      className="mx-auto max-w-7xl px-5 py-12 md:px-8"
+    >
       <p className="eyebrow">Separate administrator realm</p>
       <h1 className="mt-2 font-serif text-5xl font-black">User management</h1>
       <form className="panel mt-8 flex gap-3">
