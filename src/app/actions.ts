@@ -39,6 +39,12 @@ const value = (form: FormData, key: string) =>
 
 export async function registerAction(form: FormData) {
   const loginId = value(form, 'loginId')
+  if (!loginIdSchema.safeParse(loginId).success)
+    redirect(
+      '/register?error=Login+ID+must+use+3-40+letters%2C+numbers%2C+dots%2C+underscores%2C+or+hyphens',
+    )
+  if (!passwordSchema.safeParse(value(form, 'password')).success)
+    redirect('/register?error=Password+must+be+between+12+and+128+characters')
   assertRateLimit(`register:${loginId}`)
   try {
     await createUser(loginId, value(form, 'password'))

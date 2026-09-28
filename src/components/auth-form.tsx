@@ -38,7 +38,16 @@ export function AuthForm({
               autoComplete="username"
               required
               minLength={3}
+              maxLength={40}
+              pattern="[A-Za-z0-9._-]+"
+              aria-describedby="login-id-help"
             />
+            <span
+              id="login-id-help"
+              className="mt-1 block text-xs font-normal text-ink/55"
+            >
+              3-40 characters: letters, numbers, dots, underscores, or hyphens.
+            </span>
           </label>
           <label className="block text-sm font-semibold">
             Password
@@ -53,7 +62,15 @@ export function AuthForm({
               }
               required
               minLength={12}
+              maxLength={128}
+              aria-describedby="password-help"
             />
+            <span
+              id="password-help"
+              className="mt-1 block text-xs font-normal text-ink/55"
+            >
+              At least 12 characters.
+            </span>
           </label>
           <button className="w-full" type="submit">
             Continue
