@@ -25,6 +25,9 @@ describe('LibrarySearchControls', () => {
     render(<LibrarySearchControls {...props} />)
 
     expect(screen.getByLabelText('Reading state')).not.toBeVisible()
+    expect(document.querySelector('#library-filter-panel')).toHaveClass(
+      'hidden',
+    )
     expect(screen.getByRole('button', { name: 'Filter' })).toHaveAttribute(
       'aria-expanded',
       'false',
@@ -38,6 +41,10 @@ describe('LibrarySearchControls', () => {
     expect(screen.getByLabelText('Ownership')).toHaveValue('HAVE')
     expect(screen.getByLabelText('Location')).toHaveValue('shelf-1')
     expect(screen.getByLabelText('Genre')).toHaveValue('genre-1')
+    expect(document.querySelector('#library-filter-panel')).toHaveClass('grid')
+    expect(document.querySelector('#library-filter-panel')).not.toHaveClass(
+      'hidden',
+    )
     expect(screen.getByRole('button', { name: 'Filter' })).toHaveAttribute(
       'aria-expanded',
       'true',

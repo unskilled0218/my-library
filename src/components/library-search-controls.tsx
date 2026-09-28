@@ -56,7 +56,7 @@ export function LibrarySearchControls({
       </div>
       <div
         id="library-filter-panel"
-        className="mt-4 grid gap-3 border-t border-ink/10 pt-4 sm:grid-cols-2 lg:grid-cols-4"
+        className={`mt-4 gap-3 border-t border-ink/10 pt-4 sm:grid-cols-2 lg:grid-cols-4 ${filtersVisible ? 'grid' : 'hidden'}`}
         hidden={!filtersVisible}
       >
         <select

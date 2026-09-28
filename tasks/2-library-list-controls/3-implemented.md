@@ -12,6 +12,7 @@
 - Preserved server-side filtering and pagination while removing the obsolete `view` search parameter from the library page.
 - Added stable control IDs, disclosure semantics, pressed states, labels, and a `data-view` hook for accessible behavior and deterministic browser assertions.
 - Added component coverage for filter disclosure, populated values, remount reset, hidden active filters, initial views, local view switching, URL stability, and scroll stability.
+- Fixed the filter panel's display utilities so Tailwind cannot override its closed state; it now uses `hidden` while closed and `grid` only while open.
 - Extended the Playwright registration flow to cover form ordering, search-row control order, filter visibility/reset, and grid/list URL and scroll preservation.
 
 ## Verification
