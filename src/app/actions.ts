@@ -494,52 +494,6 @@ export async function deleteBookAction(form: FormData) {
   redirect(`/libraries/${libraryId}`)
 }
 
-export async function lendBookAction(form: FormData) {
-  const user = await requireUser()
-  const bookId = value(form, 'bookId')
-  const { libraryId } = await requireBookAccess(user, bookId, 'WRITE')
-  const book = await db.book.findUniqueOrThrow({
-    where: { id: bookId },
-    include: { loans: { where: { returnedAt: null } } },
-  })
-  if (book.format !== BookFormat.PHYSICAL || book.loans.length)
-    throw new Error('Book cannot be lent')
-  await db.loan.create({
-    data: {
-      bookId,
-      borrowerName: value(form, 'borrowerName').slice(0, 120),
-      lentAt: new Date(),
-      dueAt: value(form, 'dueAt') ? new Date(value(form, 'dueAt')) : null,
-    },
-  })
-  revalidatePath(`/books/${bookId}`)
-  revalidatePath(`/libraries/${libraryId}`)
-}
-
-export async function returnBookAction(form: FormData) {
-  const user = await requireUser()
-  const bookId = value(form, 'bookId')
-  await requireBookAccess(user, bookId, 'WRITE')
-  await db.loan.updateMany({
-    where: { bookId, returnedAt: null },
-    data: { returnedAt: new Date() },
-  })
-  revalidatePath(`/books/${bookId}`)
-}
-
-export async function updateLoanDueAction(form: FormData) {
-  const user = await requireUser()
-  const bookId = value(form, 'bookId')
-  await requireBookAccess(user, bookId, 'WRITE')
-  await db.loan.updateMany({
-    where: { bookId, returnedAt: null },
-    data: {
-      dueAt: value(form, 'dueAt') ? new Date(value(form, 'dueAt')) : null,
-    },
-  })
-  revalidatePath(`/books/${bookId}`)
-}
-
 export async function toggleUserDisabledAction(form: FormData) {
   const admin = await requireAdmin()
   const userId = value(form, 'userId')

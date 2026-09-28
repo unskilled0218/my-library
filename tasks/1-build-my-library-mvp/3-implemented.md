@@ -7,7 +7,7 @@
 ## Application foundation
 
 - Added a Next.js 16 App Router application with TypeScript, React 19, Tailwind CSS, responsive desktop/mobile layouts, metadata, loading/error/not-found states, linting, formatting, unit tests, Playwright configuration, and a production standalone build.
-- Added PostgreSQL/Prisma configuration, an initial migration, database-only partial uniqueness constraints for root genres and open loans, development seed data, a readiness endpoint, environment validation, an official Node image for the Compose app service, and volumes for dependencies, Playwright Chromium, PostgreSQL, and persistent covers.
+- Added PostgreSQL/Prisma configuration, migrations, development seed data, a readiness endpoint, environment validation, an official Node image for the Compose app service, and volumes for dependencies, Playwright Chromium, PostgreSQL, and persistent covers.
 - Added setup and operational documentation in `README.md` and `.env.example`.
 
 ## Identity and authorization
@@ -24,7 +24,6 @@
 - Added paginated and responsive book list/grid views with text search plus reading, format, ownership, location, and genre-subtree filters.
 - Added book detail/edit/delete flows with required canonical Kyobo source URLs, multiple authors, short descriptions, ISBNs, ownership/format/reading states, physical locations, comments, reading dates, and ratings.
 - Added hierarchical shared genres with canonical Kyobo URLs, cycle/conflict protection, and many-to-many leaf associations so books preserve multiple complete Kyobo genre paths.
-- Added physical-book lending, due-date editing, overdue visibility, return behavior, and retained loan history.
 
 ## Kyobo and covers
 
@@ -36,9 +35,9 @@
 
 ## Portability, statistics, and audit
 
-- Added owner-only versioned JSON backups with covers, books, genres, tags, settings, loans, ratings, and reading dates, plus spreadsheet-oriented CSV import/export without cover binaries or loan history.
+- Added owner-only versioned JSON backups with covers, books, genres, tags, settings, ratings, and reading dates, plus spreadsheet-oriented CSV import/export without cover binaries.
 - Added bounded schema validation, canonical URL and image validation, import preview, duplicate summaries, transactional apply behavior, genre/tag reconstruction, and cover cleanup after failed imports.
-- Added authorized statistics for totals, reading state, format, genre, location, ratings, current loans, and overdue loans.
+- Added authorized statistics for totals, reading state, format, genre, location, and ratings.
 - Added immutable application-level audit creation for sharing, imports, library/book deletion, administrator setup, and user status changes, with owner and administrator views that omit credentials and book comments.
 - Added a separate administrator dashboard for user search, account/library counts, account enable/disable behavior, session revocation, and system audit events.
 

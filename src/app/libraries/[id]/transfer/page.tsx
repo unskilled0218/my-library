@@ -18,8 +18,8 @@ export default async function TransferPage({
         <section className="panel">
           <h2 className="font-serif text-3xl font-bold">Export</h2>
           <p className="mt-3 text-sm leading-6 text-ink/60">
-            JSON is a lossless backup with loans, settings-ready metadata, genre
-            paths, and cover images. CSV is designed for spreadsheet editing.
+            JSON is a lossless backup with settings, genre paths, reading data,
+            and cover images. CSV is designed for spreadsheet editing.
           </p>
           <div className="mt-5 flex gap-2">
             <a

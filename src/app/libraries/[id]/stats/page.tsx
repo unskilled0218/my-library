@@ -24,23 +24,14 @@ export default async function StatsPage({
     include: {
       genres: { include: { genre: true } },
       locationTag: true,
-      loans: { where: { returnedAt: null } },
     },
   })
-  const now = new Date()
   const stats = [
     ['Total books', books.length],
     ['Finished', books.filter((book) => book.readingState === 'DONE').length],
     [
       'Currently reading',
       books.filter((book) => book.readingState === 'READING').length,
-    ],
-    ['On loan', books.filter((book) => book.loans.length).length],
-    [
-      'Overdue',
-      books.filter((book) =>
-        book.loans.some((loan) => loan.dueAt && loan.dueAt < now),
-      ).length,
     ],
     [
       'Average rating',

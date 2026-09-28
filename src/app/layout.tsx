@@ -6,7 +6,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: { default: 'My Library', template: '%s | My Library' },
-  description: 'A private home for the books you keep, read, and lend.',
+  description: 'A private home for the books you keep and read.',
 }
 
 export default async function RootLayout({

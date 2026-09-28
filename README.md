@@ -1,12 +1,12 @@
 # My Library
 
-A responsive personal book-management service for private and shared libraries. It supports Kyobo search/import, hierarchical genres, local cover storage, reading and lending history, backups, statistics, and a separate administrator realm.
+A responsive personal book-management service for private and shared libraries. It supports Kyobo search/import, hierarchical genres, local cover storage, reading history, backups, statistics, and a separate administrator realm.
 
 ## Run with Docker Compose
 
 1. Copy `.env.example` to `.env` and replace `SESSION_SECRET` with at least 32 random characters.
 2. Set `ALLOWED_DEV_ORIGINS` to the comma-separated hostnames used to access the development server, such as `dev.lan,localhost`.
-3. Optionally set both `ADMIN_ID` and `ADMIN_PASSWORD` to create the first administrator non-interactively.
+3. Optionally set both `ADMIN_ID` and `ADMIN_PASSWORD` to create the first administrator non-interactively. `ADMIN_PASSWORD` must be longer than 12 characters.
 4. Run `docker compose up`.
 5. Open `http://localhost:3000`.
 

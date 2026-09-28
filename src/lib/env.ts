@@ -7,7 +7,7 @@ const schema = z
     COVER_STORAGE_PATH: z.string().min(1).default('./covers'),
     ALLOWED_DEV_ORIGINS: z.string().optional(),
     ADMIN_ID: z.string().trim().min(3).optional(),
-    ADMIN_PASSWORD: z.string().min(12).optional(),
+    ADMIN_PASSWORD: z.string().min(13).optional(),
   })
   .refine(
     (value) => Boolean(value.ADMIN_ID) === Boolean(value.ADMIN_PASSWORD),

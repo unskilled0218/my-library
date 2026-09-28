@@ -40,16 +40,6 @@ const bookSchema = z.object({
   comment: z.string().max(10_000).default(''),
   location: z.string().max(80).nullable().optional(),
   genrePaths: z.array(genrePathSchema).min(1),
-  loans: z
-    .array(
-      z.object({
-        borrowerName: z.string().min(1).max(120),
-        lentAt: z.string().datetime(),
-        dueAt: z.string().datetime().nullable(),
-        returnedAt: z.string().datetime().nullable(),
-      }),
-    )
-    .default([]),
   cover: z
     .object({
       mime: z.enum(['image/jpeg', 'image/png', 'image/webp']),
@@ -113,7 +103,7 @@ export async function GET(request: Request, { params }: Params) {
     include: {
       settings: true,
       locationTags: true,
-      books: { include: { genres: true, locationTag: true, loans: true } },
+      books: { include: { genres: true, locationTag: true } },
     },
   })
   const allGenres = await db.genre.findMany()
@@ -137,12 +127,6 @@ export async function GET(request: Request, { params }: Params) {
       genrePaths: book.genres.map(({ genreId }) =>
         pathsForGenre(genreId, genreMap),
       ),
-      loans: book.loans.map((loan) => ({
-        borrowerName: loan.borrowerName,
-        lentAt: loan.lentAt.toISOString(),
-        dueAt: loan.dueAt?.toISOString() ?? null,
-        returnedAt: loan.returnedAt?.toISOString() ?? null,
-      })),
       cover: book.coverKey
         ? {
             mime: book.coverMime,
@@ -232,7 +216,6 @@ export async function POST(request: Request, { params }: Params) {
           authors: row.authors?.split(';').map((item) => item.trim()),
           rating: row.rating ? Number(row.rating) : null,
           genrePaths: JSON.parse(row.genrePaths || '[]'),
-          loans: [],
           cover: null,
         })),
       }
@@ -345,16 +328,6 @@ export async function POST(request: Request, { params }: Params) {
               coverWidth: cover?.width,
               coverHeight: cover?.height,
               genres: { create: genreIds.map((genreId) => ({ genreId })) },
-              loans: {
-                create: book.loans.map((loan) => ({
-                  borrowerName: loan.borrowerName,
-                  lentAt: new Date(loan.lentAt),
-                  dueAt: loan.dueAt ? new Date(loan.dueAt) : null,
-                  returnedAt: loan.returnedAt
-                    ? new Date(loan.returnedAt)
-                    : null,
-                })),
-              },
             },
           })
         }

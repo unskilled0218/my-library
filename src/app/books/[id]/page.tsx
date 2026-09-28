@@ -1,11 +1,5 @@
 import { notFound } from 'next/navigation'
-import {
-  deleteBookAction,
-  lendBookAction,
-  returnBookAction,
-  updateBookAction,
-  updateLoanDueAction,
-} from '@/app/actions'
+import { deleteBookAction, updateBookAction } from '@/app/actions'
 import { libraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -25,7 +19,6 @@ export default async function BookPage({
       library: true,
       locationTag: true,
       genres: { include: { genre: true } },
-      loans: { orderBy: { lentAt: 'desc' } },
     },
   })
   if (!book) notFound()
@@ -38,7 +31,6 @@ export default async function BookPage({
         orderBy: { name: 'asc' },
       })
     : []
-  const openLoan = book.loans.find((loan) => !loan.returnedAt)
   return (
     <div className="mx-auto max-w-6xl px-5 py-12 md:px-8">
       <div className="grid gap-10 md:grid-cols-[300px_1fr]">
@@ -169,57 +161,6 @@ export default async function BookPage({
           )}
         </div>
       </div>
-      {canWrite && book.format === 'PHYSICAL' && (
-        <section className="panel mt-10">
-          <p className="eyebrow">Lending</p>
-          <h2 className="mt-2 font-serif text-3xl font-bold">Loan history</h2>
-          {openLoan ? (
-            <div className="mt-5 rounded-xl bg-gold/15 p-4">
-              <p>
-                With {openLoan.borrowerName}
-                {openLoan.dueAt
-                  ? ` · due ${openLoan.dueAt.toLocaleDateString()}`
-                  : ''}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <form action={updateLoanDueAction} className="flex gap-2">
-                  <input type="hidden" name="bookId" value={id} />
-                  <input
-                    name="dueAt"
-                    type="date"
-                    defaultValue={dateInput(openLoan.dueAt)}
-                  />
-                  <button>Update due date</button>
-                </form>
-                <form action={returnBookAction}>
-                  <input type="hidden" name="bookId" value={id} />
-                  <button>Mark returned</button>
-                </form>
-              </div>
-            </div>
-          ) : (
-            <form
-              action={lendBookAction}
-              className="mt-5 grid gap-3 sm:grid-cols-[1fr_180px_auto]"
-            >
-              <input type="hidden" name="bookId" value={id} />
-              <input name="borrowerName" required placeholder="Borrower name" />
-              <input name="dueAt" type="date" />
-              <button>Lend book</button>
-            </form>
-          )}
-          <div className="mt-5 space-y-2 text-sm">
-            {book.loans.map((loan) => (
-              <div key={loan.id} className="border-t border-ink/10 pt-2">
-                {loan.borrowerName} · {loan.lentAt.toLocaleDateString()} ·{' '}
-                {loan.returnedAt
-                  ? `returned ${loan.returnedAt.toLocaleDateString()}`
-                  : 'open'}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
       {canWrite && (
         <form action={deleteBookAction} className="mt-8 text-right">
           <input type="hidden" name="bookId" value={id} />
