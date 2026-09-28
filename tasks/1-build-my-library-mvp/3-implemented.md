@@ -7,7 +7,7 @@
 ## Application foundation
 
 - Added a Next.js 16 App Router application with TypeScript, React 19, Tailwind CSS, responsive desktop/mobile layouts, metadata, loading/error/not-found states, linting, formatting, unit tests, Playwright configuration, and a production standalone build.
-- Added PostgreSQL/Prisma configuration, an initial migration, database-only partial uniqueness constraints for root genres and open loans, development seed data, a readiness endpoint, environment validation, and Docker Compose services/volumes for PostgreSQL, dependencies, and persistent covers.
+- Added PostgreSQL/Prisma configuration, an initial migration, database-only partial uniqueness constraints for root genres and open loans, development seed data, a readiness endpoint, environment validation, an official Node image for the Compose app service, and volumes for dependencies, Playwright Chromium, PostgreSQL, and persistent covers.
 - Added setup and operational documentation in `README.md` and `.env.example`.
 
 ## Identity and authorization

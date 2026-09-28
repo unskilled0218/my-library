@@ -11,7 +11,7 @@ A responsive personal book-management service for private and shared libraries. 
 
 If no administrator environment credentials are present, the server prints a short-lived `/admin/setup?token=...` URL once the database is ready. The setup route closes permanently after the first administrator is created.
 
-The application container needs Chromium and its Linux dependencies for Kyobo product pages. In a compatible Node image, install the browser with `npx playwright install chromium`. Use `npx playwright install-deps chromium` while building the image if its base OS does not already provide browser libraries.
+The Compose app service uses the official `node:24-bookworm` image. Startup installs Chromium and its Linux dependencies for Kyobo product pages, while a named volume preserves the downloaded browser between container recreations.
 
 ## Local development
 
