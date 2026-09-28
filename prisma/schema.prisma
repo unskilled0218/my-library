@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MemberRole {
+  VIEWER
+  EDITOR
+}
+
+enum BookFormat {
+  PHYSICAL
+  EBOOK
+}
+
+enum OwnershipState {
+  HAVE
+  DONT_HAVE
+}
+
+enum ReadingState {
+  NOT_STARTED
+  READING
+  DONE
+}
+
+enum LibraryView {
+  LIST
+  GRID
+}
+
+enum ActorType {
+  USER
+  ADMIN
+  SYSTEM
+}
+
+model User {
+  id           String          @id @default(cuid())
+  loginId      String          @unique
+  passwordHash String
+  disabledAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  libraries    Library[]
+  memberships  LibraryMember[]
+  sessions     UserSession[]
+}
+
+model Admin {
+  id           String         @id @default(cuid())
+  loginId      String         @unique
+  passwordHash String
+  disabledAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     AdminSession[]
+}
+
+model UserSession {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  adminId   String
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([expiresAt])
+}
+
+model AdminSetupToken {
+  id        String   @id @default("initial")
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Library {
+  id           String                  @id @default(cuid())
+  name         String
+  description  String                  @default("")
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  ownerId      String
+  owner        User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members      LibraryMember[]
+  books        Book[]
+  locationTags LocationTag[]
+  settings     LibraryDisplaySettings?
+  auditLogs    AuditLog[]
+
+  @@index([ownerId])
+}
+
+model LibraryMember {
+  id        String     @id @default(cuid())
+  role      MemberRole
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  libraryId String
+  userId    String
+  library   Library    @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([libraryId, userId])
+  @@index([userId])
+}
+
+model LibraryDisplaySettings {
+  id           String      @id @default(cuid())
+  defaultView  LibraryView @default(GRID)
+  showCover    Boolean     @default(true)
+  showTitle    Boolean     @default(true)
+  showAuthors  Boolean     @default(true)
+  showGenre    Boolean     @default(true)
+  showReading  Boolean     @default(true)
+  showLocation Boolean     @default(false)
+  libraryId    String      @unique
+  library      Library     @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+}
+
+model Genre {
+  id        String      @id @default(cuid())
+  name      String
+  url       String      @unique
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  parentId  String?
+  parent    Genre?      @relation("GenreTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Genre[]     @relation("GenreTree")
+  books     BookGenre[]
+
+  @@unique([parentId, name])
+  @@index([parentId])
+}
+
+model Book {
+  id                String         @id @default(cuid())
+  title             String
+  authors           String[]
+  description       String         @default("")
+  isbn10            String?
+  isbn13            String?
+  sourceUrl         String
+  coverKey          String?
+  coverMime         String?
+  coverWidth        Int?
+  coverHeight       Int?
+  ownershipState    OwnershipState @default(HAVE)
+  format            BookFormat     @default(PHYSICAL)
+  readingState      ReadingState   @default(NOT_STARTED)
+  readingStartedAt  DateTime?
+  readingFinishedAt DateTime?
+  rating            Int?
+  comment           String         @default("")
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  libraryId         String
+  locationTagId     String?
+  library           Library        @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  locationTag       LocationTag?   @relation(fields: [locationTagId], references: [id], onDelete: Restrict)
+  genres            BookGenre[]
+  loans             Loan[]
+
+  @@index([libraryId, title])
+  @@index([libraryId, isbn13])
+  @@index([locationTagId])
+}
+
+model BookGenre {
+  bookId  String
+  genreId String
+  book    Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  genre   Genre  @relation(fields: [genreId], references: [id], onDelete: Restrict)
+
+  @@id([bookId, genreId])
+  @@index([genreId])
+}
+
+model LocationTag {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  libraryId String
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  books     Book[]
+
+  @@unique([libraryId, name])
+}
+
+model Loan {
+  id           String    @id @default(cuid())
+  borrowerName String
+  lentAt       DateTime
+  dueAt        DateTime?
+  returnedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  bookId       String
+  book         Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([bookId, returnedAt])
+  @@index([dueAt])
+}
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  actorType  ActorType
+  actorId    String?
+  action     String
+  targetType String
+  targetId   String?
+  summary    Json
+  createdAt  DateTime  @default(now())
+  libraryId  String?
+  library    Library?  @relation(fields: [libraryId], references: [id], onDelete: SetNull)
+
+  @@index([libraryId, createdAt])
+  @@index([actorType, actorId, createdAt])
+}

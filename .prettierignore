@@ -1,0 +1,9 @@
+node_modules
+.next
+coverage
+playwright-report
+test-results
+prisma/schema.prisma
+prisma/migrations
+.env.example
+tasks
