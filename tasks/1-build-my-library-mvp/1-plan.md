@@ -18,7 +18,7 @@ Build a responsive personal book-management web application where users can regi
 - Add a separate `Admin` credential and session model so administrator access cannot be obtained by changing a user's role. Admin IDs must use a namespace distinct from user login IDs.
 - Add `Library` with ID, owner, name, description, timestamps, memberships, books, location tags, and display settings. Creating a user should also create a default library transactionally.
 - Add `LibraryMember` with a unique library/user pair and role (`VIEWER` or `EDITOR`). Owners retain all permissions and cannot be represented as removable memberships.
-- Add `Book` scoped to one library with title, authors, genre, cover URL, ISBN-10/ISBN-13 where available, ownership state, format (`PHYSICAL` or `EBOOK`), reading state (`NOT_STARTED`, `READING`, or `DONE`), optional location tag, personal comment, source metadata, and timestamps.
+- Add `Book` scoped to one library with title, authors, genre, cover URL, ISBN-10/ISBN-13 where available, ownership state, format (`PHYSICAL` or `EBOOK`), reading state (`NOT_STARTED`, `READING`, or `DONE`), optional location tag, personal comment, an optional source URL pointing to the Kyobo product page, and timestamps.
 - Add `LocationTag` scoped to a library. Prevent deletion while in use unless the user explicitly reassigns or clears affected books.
 - Add `LibraryDisplaySettings` with default view (`LIST` or `GRID`) and booleans for the metadata shown on the main list.
 - Define indexes and uniqueness constraints for normalized login IDs, memberships, library book searches, ISBN lookup, and location names within a library.
@@ -34,14 +34,14 @@ Build a responsive personal book-management web application where users can regi
 7. Implement book CRUD and the main library view. Support list/grid switching, persisted display preferences, pagination, search across title/author/genre/ISBN/comment, filters for ownership/format/reading state/location, and responsive book detail/edit screens.
 8. Implement location-tag settings and validate that a location can only be assigned to a physical book in the same library. Make destructive operations explicit and preserve referential integrity.
 9. Create a server-only `BookSearchProvider` interface and a Kyobo implementation. Fetch Kyobo pages/endpoints with timeouts, a descriptive user agent, bounded retries, response-size limits, parsing validation, and short-lived caching; map external responses into an internal candidate type so scraper changes remain localized.
-10. Add keyword search and ISBN lookup screens. Let users review and edit imported metadata before saving, detect likely duplicates by normalized ISBN within the selected library, and provide a manual-entry fallback whenever Kyobo is unavailable or incomplete.
+10. Add keyword search and ISBN lookup screens. Let users review and edit imported metadata before saving, persist the canonical Kyobo product URL as the book's source URL, detect likely duplicates by normalized ISBN within the selected library, and provide a manual-entry fallback whenever Kyobo is unavailable or incomplete.
 11. Add mobile ISBN scanning using the device camera. Prefer the browser `BarcodeDetector` API when available and use a maintained client-side fallback for unsupported browsers; require camera permission only after user interaction, stop media tracks on close/navigation, and allow typed ISBN entry at all times.
 12. Add a minimal admin area protected by the separate administrator session. List/search users, inspect account and library counts, and enable/disable user accounts. Do not expose password hashes or personal book comments.
 13. Polish navigation and operational behavior: desktop/mobile layouts, loading and not-found states, structured server logging without secrets, a health endpoint that checks application and database readiness, metadata, and clear handling for offline/external-provider failures.
 
 ## Test plan
 
-- Unit-test validation, login-ID normalization, ISBN normalization, permission decisions, book-search mapping/parsing, duplicate detection, and location/format invariants.
+- Unit-test validation, login-ID normalization, ISBN normalization, Kyobo source URL mapping, permission decisions, book-search mapping/parsing, duplicate detection, and location/format invariants.
 - Integration-test registration/default-library creation, user authentication, environment-based admin bootstrap, one-time first-start admin setup, setup-route shutdown, administrator authentication, rejection of partial bootstrap configuration, library ownership and sharing roles, cross-user access denial, book CRUD, settings persistence, tag deletion rules, account disabling, and transaction rollback behavior against a test database.
 - Mock Kyobo responses for parser contract tests, including valid results, changed/missing markup, timeout, rate limiting, malformed data, and no-result cases. Do not make live Kyobo requests in the normal test suite.
 - Component-test important forms, filters, list/grid preferences, accessible error messages, and camera/manual-entry fallbacks.
