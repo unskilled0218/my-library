@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { BookFormat, OwnershipState, ReadingState } from '@prisma/client'
 
-type CardBook = {
+export type CardBook = {
   id: string
   title: string
   authors: string[]
@@ -14,7 +14,7 @@ type CardBook = {
   genres: { genre: { name: string } }[]
 }
 
-type Display = {
+export type BookDisplay = {
   showCover: boolean
   showTitle: boolean
   showAuthors: boolean
@@ -30,7 +30,7 @@ export function BookCard({
 }: {
   book: CardBook
   view: 'LIST' | 'GRID'
-  display: Display
+  display: BookDisplay
 }) {
   return (
     <Link

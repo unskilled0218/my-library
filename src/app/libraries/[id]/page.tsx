@@ -10,7 +10,8 @@ import {
   updateDisplayAction,
   updateLibraryAction,
 } from '@/app/actions'
-import { BookCard } from '@/components/book-card'
+import { LibraryBookList } from '@/components/library-book-list'
+import { LibrarySearchControls } from '@/components/library-search-controls'
 import { libraryAccess, requireLibraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -27,7 +28,6 @@ export default async function LibraryPage({
     ownership?: string
     location?: string
     genre?: string
-    view?: string
     page?: string
   }>
 }) {
@@ -38,6 +38,14 @@ export default async function LibraryPage({
   await requireLibraryAccess(user, id, 'READ')
   const query = await searchParams
   const page = Math.max(1, Number(query.page) || 1)
+  const activeFilters = {
+    ...(query.q ? { q: query.q } : {}),
+    ...(query.reading ? { reading: query.reading } : {}),
+    ...(query.format ? { format: query.format } : {}),
+    ...(query.ownership ? { ownership: query.ownership } : {}),
+    ...(query.location ? { location: query.location } : {}),
+    ...(query.genre ? { genre: query.genre } : {}),
+  }
   const canWrite = access === 'OWNER' || access === 'EDITOR'
   const genreOptions = await db.genre.findMany({ orderBy: { name: 'asc' } })
   const genreFilterIds = query.genre ? [query.genre] : []
@@ -104,11 +112,7 @@ export default async function LibraryPage({
     },
   })
   if (!library) notFound()
-  const view =
-    query.view === 'LIST' ||
-    (!query.view && library.settings?.defaultView === 'LIST')
-      ? 'LIST'
-      : 'GRID'
+  const initialView = library.settings?.defaultView ?? 'GRID'
   const display = library.settings ?? {
     showCover: true,
     showTitle: true,
@@ -163,85 +167,22 @@ export default async function LibraryPage({
           )}
         </div>
       </div>
-      <form
-        id="library-filters"
-        className="panel mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-      >
-        <input
-          name="q"
-          defaultValue={query.q}
-          placeholder="Search title, author, genre, ISBN, notes..."
-        />
-        <select name="reading" defaultValue={query.reading ?? ''}>
-          <option value="">All reading states</option>
-          <option value="NOT_STARTED">Not started</option>
-          <option value="READING">Reading</option>
-          <option value="DONE">Done</option>
-        </select>
-        <select name="format" defaultValue={query.format ?? ''}>
-          <option value="">All formats</option>
-          <option value="PHYSICAL">Physical</option>
-          <option value="EBOOK">Ebook</option>
-        </select>
-        <select name="ownership" defaultValue={query.ownership ?? ''}>
-          <option value="">All ownership</option>
-          <option value="HAVE">Have</option>
-          <option value="DONT_HAVE">Do not have</option>
-        </select>
-        <select name="location" defaultValue={query.location ?? ''}>
-          <option value="">All locations</option>
-          {library.locationTags.map((tag) => (
-            <option key={tag.id} value={tag.id}>
-              {tag.name}
-            </option>
-          ))}
-        </select>
-        <select name="genre" defaultValue={query.genre ?? ''}>
-          <option value="">All genres</option>
-          {genreOptions.map((genre) => (
-            <option key={genre.id} value={genre.id}>
-              {genre.name}
-            </option>
-          ))}
-        </select>
-        <button type="submit">Filter</button>
-      </form>
-      <div className="mt-5 flex justify-end gap-2">
-        <Link
-          className={`button ${view === 'GRID' ? '' : 'button-secondary'}`}
-          href={`?${new URLSearchParams({ ...query, view: 'GRID' })}`}
-        >
-          Grid
-        </Link>
-        <Link
-          className={`button ${view === 'LIST' ? '' : 'button-secondary'}`}
-          href={`?${new URLSearchParams({ ...query, view: 'LIST' })}`}
-        >
-          List
-        </Link>
-      </div>
-      <div
-        id="library-book-list"
-        className={`mt-6 grid gap-5 ${view === 'GRID' ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}
-      >
-        {library.books.map((book) => (
-          <BookCard key={book.id} book={book} view={view} display={display} />
-        ))}
-        {library.books.length === 0 && (
-          <div className="panel col-span-full text-center">
-            <p className="font-serif text-2xl font-bold">No books found</p>
-            <p className="mt-2 text-ink/60">
-              Add a book or change the current filters.
-            </p>
-          </div>
-        )}
-      </div>
+      <LibrarySearchControls
+        query={activeFilters}
+        locations={library.locationTags}
+        genres={genreOptions}
+      />
+      <LibraryBookList
+        books={library.books}
+        display={display}
+        initialView={initialView}
+      />
       {(page > 1 || library.books.length === 100) && (
         <nav className="mt-8 flex justify-center gap-3" aria-label="Book pages">
           {page > 1 && (
             <Link
               className="button button-secondary"
-              href={`?${new URLSearchParams({ ...query, page: String(page - 1) })}`}
+              href={`?${new URLSearchParams({ ...activeFilters, page: String(page - 1) })}`}
             >
               Previous
             </Link>
@@ -249,7 +190,7 @@ export default async function LibraryPage({
           {library.books.length === 100 && (
             <Link
               className="button button-secondary"
-              href={`?${new URLSearchParams({ ...query, page: String(page + 1) })}`}
+              href={`?${new URLSearchParams({ ...activeFilters, page: String(page + 1) })}`}
             >
               Next
             </Link>

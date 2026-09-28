@@ -25,7 +25,28 @@ export default async function LibrariesPage() {
           </h1>
         </div>
       </div>
-      <div className="mt-9 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <form
+        id="library-create-form"
+        action={createLibraryAction}
+        className="panel mt-8 grid gap-4 md:grid-cols-[1fr_2fr_auto]"
+      >
+        <input
+          name="name"
+          placeholder="New library name"
+          required
+          maxLength={100}
+        />
+        <input
+          name="description"
+          placeholder="What belongs here?"
+          maxLength={500}
+        />
+        <button type="submit">Create library</button>
+      </form>
+      <div
+        id="library-card-list"
+        className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+      >
         {libraries.map((library) => (
           <Link
             key={library.id}
@@ -54,23 +75,6 @@ export default async function LibrariesPage() {
           <p className="text-ink/60">No libraries yet.</p>
         )}
       </div>
-      <form
-        action={createLibraryAction}
-        className="panel mt-10 grid gap-4 md:grid-cols-[1fr_2fr_auto]"
-      >
-        <input
-          name="name"
-          placeholder="New library name"
-          required
-          maxLength={100}
-        />
-        <input
-          name="description"
-          placeholder="What belongs here?"
-          maxLength={500}
-        />
-        <button type="submit">Create library</button>
-      </form>
     </div>
   )
 }
