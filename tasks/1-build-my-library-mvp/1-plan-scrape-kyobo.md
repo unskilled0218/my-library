@@ -11,19 +11,20 @@ Build and run an isolated, disposable spike that proves whether the target serve
 - Searching title `너의 췌장을 먹고 싶어` returned four documents and the expected physical book was first at observation time. For an ISBN query, use the first result as required, then validate that its normalized ISBN exactly matches the query before using it.
 - `SALE_CMDTID` produces product URL `https://product.kyobobook.co.kr/detail/S000001750574`.
 - The supplied cover URL returned `200 image/jpeg` with a non-empty body and can be downloaded independently.
-- The product page returned HTTP 200 with an empty body and `x-cache: Error from cloudfront` from this environment. Product scraping is therefore unproven and must pass the runtime probe below before application work starts.
+- A direct HTTP request to the product page returned HTTP 200 with an empty body and `x-cache: Error from cloudfront` from this environment.
+- After Playwright Chromium and its system dependencies were installed, an ordinary headless browser loaded the product page with HTTP 200 and 432,705 bytes of rendered HTML. The expected title, two contributor links, ISBN, short introduction, cover URL, and both genre paths were present. Browser-based extraction is proven for this fixture, but using browser infrastructure in production still requires explicit approval.
 
 ## Expected normalized result
 
 Use the supplied book as the fixed acceptance fixture:
 
 - `title`: `너의 췌장을 먹고 싶어`
-- `authors`: `['스미노 요루']`; preserve all authors in page order when multiple author links are present.
+- `authors`: `['스미노 요루', '양윤옥']`; preserve all linked contributors in page order when multiple author links are present, and verify whether Kyobo exposes contributor roles before deciding whether translators belong in the application's author field.
 - `isbn`: `9791157107223`
 - `sourceUrl`: `https://product.kyobobook.co.kr/detail/S000001750574`
 - `coverUrl`: an HTTPS URL on `contents.kyobobook.co.kr` whose downloaded body is a valid, non-empty image.
 - `description`: normalized text from `#bookSimpleIntro`; do not merge the longer `#bookDescription` into the short Book description.
-- `genrePaths`: two complete root-to-leaf paths, preserving names, canonical URLs, and page order: `국내도서 > 소설 > 일본소설 > 드라마/영화소설` and `국내도서 > 소설 > 장르소설 > 드라마/영화소설`.
+- `genrePaths`: two complete root-to-leaf paths, preserving names, canonical URLs, and page order: `국내도서 > 소설 > 일본소설 > 드라마/영화소설` ending at `https://store.kyobobook.co.kr/category/domestic/010517`, and `국내도서 > 소설 > 장르소설 > 드라마/영화소설` ending at `https://store.kyobobook.co.kr/category/domestic/012819`.
 
 Because one book has multiple genre paths, the application design must use a many-to-many `BookGenre` association to tree-structured `Genre` nodes rather than a single genre foreign key. Shared ancestors and same-named leaf nodes must be resolved by canonical Kyobo URL, not name alone.
 
