@@ -2,7 +2,7 @@
 
 ## Version
 
-- Bumped the package version from `0.1.1` to `0.2.1` for the new settings routes, account behavior, data-model migration, and all-libraries backup follow-up.
+- Bumped the package version from `0.1.1` to `0.2.2` for the new settings routes, account behavior, data-model migration, all-libraries backup, and settings navigation fix.
 
 ## Changes
 
@@ -21,6 +21,7 @@
 - Added a versioned account-backup schema with 50 MB, 100-library, 5,000-book, and 12-level genre-path limits; generated exports are validated against the same contract before download. Bulk imports are authenticated, rate-limited, transactionally applied, audited, and clean up newly written covers after failure.
 - Changed both General Settings and library-specific Settings to single-column list layouts and added stable layout/import/export hooks for browser coverage.
 - Prevented repeated import submissions while a preview or apply request is pending.
+- Reworked Statistics, Import/export, and Audit log into compact rows inside one clipped navigation panel so the library settings list no longer renders oversized card links.
 
 ## Verification
 

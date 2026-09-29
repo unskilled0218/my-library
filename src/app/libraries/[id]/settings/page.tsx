@@ -53,36 +53,57 @@ export default async function LibrarySettingsPage({
       </div>
       <nav
         id="library-settings-navigation"
-        className="mt-8 space-y-3"
+        className="panel mt-8 divide-y divide-ink/10 overflow-hidden p-0"
         aria-label="Library settings"
       >
         <Link
-          className="panel transition hover:-translate-y-1"
+          className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-ink/5"
           href={`/libraries/${id}/stats`}
         >
-          <span className="eyebrow">Insights</span>
-          <span className="mt-2 block font-serif text-2xl font-bold">
-            Statistics
+          <span>
+            <span className="eyebrow">Insights</span>
+            <span className="mt-1 block font-serif text-xl font-bold">
+              Statistics
+            </span>
+          </span>
+          <span className="text-sm font-semibold text-moss" aria-hidden="true">
+            View
           </span>
         </Link>
         {access === 'OWNER' && (
           <>
             <Link
-              className="panel transition hover:-translate-y-1"
+              className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-ink/5"
               href={`/libraries/${id}/transfer`}
             >
-              <span className="eyebrow">Portability</span>
-              <span className="mt-2 block font-serif text-2xl font-bold">
-                Import / export
+              <span>
+                <span className="eyebrow">Portability</span>
+                <span className="mt-1 block font-serif text-xl font-bold">
+                  Import / export
+                </span>
+              </span>
+              <span
+                className="text-sm font-semibold text-moss"
+                aria-hidden="true"
+              >
+                Manage
               </span>
             </Link>
             <Link
-              className="panel transition hover:-translate-y-1"
+              className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-ink/5"
               href={`/libraries/${id}/audit`}
             >
-              <span className="eyebrow">History</span>
-              <span className="mt-2 block font-serif text-2xl font-bold">
-                Audit log
+              <span>
+                <span className="eyebrow">History</span>
+                <span className="mt-1 block font-serif text-xl font-bold">
+                  Audit log
+                </span>
+              </span>
+              <span
+                className="text-sm font-semibold text-moss"
+                aria-hidden="true"
+              >
+                View
               </span>
             </Link>
           </>
