@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { addKyoboBookAction, addManualBookAction } from '@/app/actions'
+import { KyoboReviewModal } from '@/components/kyobo-review-modal'
 import { currentUser } from '@/lib/auth'
 import {
   normalizeSearchQuery,
@@ -16,6 +17,7 @@ type SearchParams = {
   source?: string
   selected?: string
   libraryId?: string
+  status?: string
 }
 
 export default async function GlobalSearchPage({
@@ -56,6 +58,14 @@ export default async function GlobalSearchPage({
   )
     ? rawQuery.libraryId
     : destinations[0]?.id
+  const closeParams = new URLSearchParams({
+    q,
+    source,
+    ...(destinationId ? { libraryId: destinationId } : {}),
+  })
+  const destination = destinations.find(
+    (library) => library.id === destinationId,
+  )
 
   return (
     <div
@@ -69,6 +79,35 @@ export default async function GlobalSearchPage({
           ? 'Search your readable libraries, Kyobo, or both.'
           : 'Search Kyobo. Sign in to search your libraries or add a book.'}
       </p>
+      {rawQuery.status === 'added' && destination && (
+        <aside
+          id="book-added-notice"
+          className="fixed inset-x-4 bottom-4 z-40 mx-auto max-w-xl rounded-2xl border border-moss/20 bg-paper p-4 shadow-card sm:p-5"
+          role="status"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-serif text-xl font-bold">Book added</p>
+              <p className="mt-1 text-sm text-ink/70">
+                Added to <strong>{destination.name}</strong>. Keep searching or
+                open the library.
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Link
+                className="button button-secondary"
+                href={`/search?${closeParams}`}
+                scroll={false}
+              >
+                Dismiss
+              </Link>
+              <Link className="button" href={`/libraries/${destination.id}`}>
+                Go to library
+              </Link>
+            </div>
+          </div>
+        </aside>
+      )}
       {!q && (
         <div className="panel mt-8 text-center text-ink/60">
           Enter a title, author, genre, or ISBN in the header search.
@@ -138,6 +177,103 @@ export default async function GlobalSearchPage({
               {kyoboResult.error}
             </p>
           )}
+          {rawQuery.selected && (detailResult.book || detailResult.error) && (
+            <KyoboReviewModal closeHref={`/search?${closeParams}`}>
+              {detailResult.error && (
+                <p
+                  className="rounded-xl bg-rust/10 p-4 text-sm text-rust"
+                  role="alert"
+                >
+                  {detailResult.error}
+                </p>
+              )}
+              {detailResult.book && (
+                <article id="kyobo-book-review">
+                  {rawQuery.status === 'already-exists' && (
+                    <p
+                      id="kyobo-add-message"
+                      className="mb-5 rounded-xl bg-rust/10 p-4 text-sm font-semibold text-rust"
+                      role="alert"
+                    >
+                      This book already exists in the selected library.
+                    </p>
+                  )}
+                  <div className="flex flex-col gap-5 sm:flex-row">
+                    {detailResult.book.coverUrl && (
+                      <img
+                        className="h-44 w-28 shrink-0 object-contain"
+                        src={detailResult.book.coverUrl}
+                        alt=""
+                      />
+                    )}
+                    <div>
+                      <p className="eyebrow">Review before adding</p>
+                      <h2 className="mt-2 font-serif text-3xl font-bold">
+                        {detailResult.book.title}
+                      </h2>
+                      <p className="mt-2 text-sm">
+                        {detailResult.book.authors.join(', ')}
+                      </p>
+                      <p className="mt-3 text-sm leading-6 text-ink/60">
+                        {detailResult.book.description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-5 space-y-2 text-xs text-ink/60">
+                    {detailResult.book.genrePaths.map((path, index) => (
+                      <p key={index}>
+                        {path.map((genre) => genre.name).join(' > ')}
+                      </p>
+                    ))}
+                  </div>
+                  {user ? (
+                    destinations.length ? (
+                      <form
+                        action={addKyoboBookAction}
+                        className="mt-5 flex flex-col gap-3 sm:flex-row"
+                      >
+                        <input
+                          type="hidden"
+                          name="saleId"
+                          value={detailResult.book.saleId}
+                        />
+                        <input type="hidden" name="q" value={q} />
+                        <input type="hidden" name="source" value={source} />
+                        <label className="min-w-0 flex-1 text-sm font-semibold">
+                          Destination library
+                          <select
+                            id="kyobo-destination-library"
+                            className="mt-1"
+                            name="libraryId"
+                            defaultValue={destinationId}
+                            required
+                          >
+                            {destinations.map((library) => (
+                              <option key={library.id} value={library.id}>
+                                {library.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button className="self-end" type="submit">
+                          Add to library
+                        </button>
+                      </form>
+                    ) : (
+                      <p className="mt-5 text-sm text-rust">
+                        You need an owned or editable library before adding
+                        books.
+                      </p>
+                    )
+                  ) : (
+                    <Link className="button mt-5" href="/login">
+                      Sign in to add this book
+                    </Link>
+                  )}
+                </article>
+              )}
+            </KyoboReviewModal>
+          )}
           {!kyoboResult.error && (
             <div className="mt-5 space-y-3">
               {kyoboResult.books.map((book, index) => {
@@ -165,6 +301,11 @@ export default async function GlobalSearchPage({
                       <h3 className="font-serif text-xl font-bold">
                         {book.title}
                       </h3>
+                      {book.authors.length > 0 && (
+                        <p className="mt-1 text-sm text-ink/70">
+                          {book.authors.join(', ')}
+                        </p>
+                      )}
                       <p className="mt-1 text-sm text-ink/60">
                         {book.isbn} · {book.format}
                       </p>
@@ -176,87 +317,6 @@ export default async function GlobalSearchPage({
                 <p className="panel text-ink/60">No Kyobo books found.</p>
               )}
             </div>
-          )}
-          {detailResult.error && (
-            <p
-              className="mt-5 rounded-xl bg-rust/10 p-4 text-sm text-rust"
-              role="alert"
-            >
-              {detailResult.error}
-            </p>
-          )}
-          {detailResult.book && (
-            <article id="kyobo-book-review" className="panel mt-6">
-              <div className="flex flex-col gap-5 sm:flex-row">
-                {detailResult.book.coverUrl && (
-                  <img
-                    className="h-44 w-28 shrink-0 object-contain"
-                    src={detailResult.book.coverUrl}
-                    alt=""
-                  />
-                )}
-                <div>
-                  <p className="eyebrow">Review before adding</p>
-                  <h2 className="mt-2 font-serif text-3xl font-bold">
-                    {detailResult.book.title}
-                  </h2>
-                  <p className="mt-2 text-sm">
-                    {detailResult.book.authors.join(', ')}
-                  </p>
-                  <p className="mt-3 text-sm leading-6 text-ink/60">
-                    {detailResult.book.description}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-5 space-y-2 text-xs text-ink/60">
-                {detailResult.book.genrePaths.map((path, index) => (
-                  <p key={index}>
-                    {path.map((genre) => genre.name).join(' > ')}
-                  </p>
-                ))}
-              </div>
-              {user ? (
-                destinations.length ? (
-                  <form
-                    action={addKyoboBookAction}
-                    className="mt-5 flex flex-col gap-3 sm:flex-row"
-                  >
-                    <input
-                      type="hidden"
-                      name="saleId"
-                      value={detailResult.book.saleId}
-                    />
-                    <label className="min-w-0 flex-1 text-sm font-semibold">
-                      Destination library
-                      <select
-                        id="kyobo-destination-library"
-                        className="mt-1"
-                        name="libraryId"
-                        defaultValue={destinationId}
-                        required
-                      >
-                        {destinations.map((library) => (
-                          <option key={library.id} value={library.id}>
-                            {library.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button className="self-end" type="submit">
-                      Add to library
-                    </button>
-                  </form>
-                ) : (
-                  <p className="mt-5 text-sm text-rust">
-                    You need an owned or editable library before adding books.
-                  </p>
-                )
-              ) : (
-                <Link className="button mt-5" href="/login">
-                  Sign in to add this book
-                </Link>
-              )}
-            </article>
           )}
           {user && destinations.length > 0 && (
             <details id="manual-book-fallback" className="panel mt-6">

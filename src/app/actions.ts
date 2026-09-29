@@ -351,11 +351,32 @@ export async function updateDisplayAction(form: FormData) {
 export async function addKyoboBookAction(form: FormData) {
   const user = await requireUser()
   const libraryId = value(form, 'libraryId')
+  const q = value(form, 'q').slice(0, 120)
+  const source = value(form, 'source') === 'all' ? 'all' : 'kyobo'
   await requireLibraryAccess(user, libraryId, 'WRITE')
-  const book = await getKyoboBook(value(form, 'saleId'))
+  const saleId = value(form, 'saleId')
+  const book = await getKyoboBook(saleId)
   kyoboBookUrlSchema.parse(book.sourceUrl)
-  if (await db.book.findFirst({ where: { libraryId, isbn13: book.isbn } }))
-    throw new Error('This ISBN is already in the library')
+  const duplicate = await db.book.findFirst({
+    where: {
+      libraryId,
+      OR: [
+        book.isbn.length === 10 ? { isbn10: book.isbn } : { isbn13: book.isbn },
+        { sourceUrl: book.sourceUrl },
+      ],
+    },
+    select: { id: true },
+  })
+  if (duplicate) {
+    const query = new URLSearchParams({
+      q,
+      source,
+      selected: saleId,
+      libraryId,
+      status: 'already-exists',
+    })
+    redirect(`/search?${query}`)
+  }
   const cover = book.coverUrl
     ? await downloadCover(book.coverUrl).catch(() => null)
     : null
@@ -396,7 +417,13 @@ export async function addKyoboBookAction(form: FormData) {
     throw error
   }
   revalidatePath(`/libraries/${libraryId}`)
-  redirect(`/libraries/${libraryId}`)
+  const query = new URLSearchParams({
+    q,
+    source,
+    libraryId,
+    status: 'added',
+  })
+  redirect(`/search?${query}`)
 }
 
 export async function addManualBookAction(form: FormData) {

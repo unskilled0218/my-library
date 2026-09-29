@@ -12,7 +12,7 @@ const searchPayload = JSON.stringify({
         SALE_CMDTID: 'S000001750574',
         SALE_CMDT_DVSN_CODE_SUB: 'KOR',
         TOT_RELATE_HTML_LIST:
-          '9791157107223$@소설$@https://contents.kyobobook.co.kr/cover.jpg',
+          '9791157107223$@소설$@너의 췌장을 먹고 싶어$@스미노 요루$@출판사$@2017$@https://contents.kyobobook.co.kr/cover.jpg',
       },
     ],
   },
@@ -34,7 +34,11 @@ describe('Kyobo provider parsing', () => {
   it('uses the first exact ISBN result', () => {
     expect(
       parseSearchResponse(searchPayload, '9791157107223')[0],
-    ).toMatchObject({ saleId: 'S000001750574', isbn: '9791157107223' })
+    ).toMatchObject({
+      saleId: 'S000001750574',
+      authors: ['스미노 요루'],
+      isbn: '9791157107223',
+    })
     expect(parseSearchResponse(searchPayload, '1111111111111')).toEqual([])
   })
 

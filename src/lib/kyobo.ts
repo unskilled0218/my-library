@@ -13,6 +13,7 @@ export type GenrePath = GenreNode[]
 export type BookCandidate = {
   saleId: string
   title: string
+  authors: string[]
   isbn: string
   sourceUrl: string
   format: 'PHYSICAL' | 'EBOOK'
@@ -49,6 +50,7 @@ function mapDocument(document: SearchDocument): BookCandidate | null {
   return {
     saleId: document.SALE_CMDTID,
     title: document.CMDT_NAME.trim(),
+    authors: fields[3]?.trim() ? [fields[3].trim()] : [],
     isbn: normalizeIsbn(document.CMDTCODE),
     sourceUrl: `${PRODUCT_ORIGIN}/detail/${document.SALE_CMDTID}`,
     format: document.SALE_CMDT_DVSN_CODE_SUB === 'EBK' ? 'EBOOK' : 'PHYSICAL',

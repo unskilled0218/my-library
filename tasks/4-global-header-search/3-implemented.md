@@ -19,6 +19,11 @@
   detection, close, startup failure, or unmount.
 - Replaced per-library Kyobo search with an access-checked redirect that
   preserves search context, and removed the library header entry point.
+- Added Kyobo authors to candidate results and an accessible detail modal with
+  keyboard, backdrop, focus, and scroll handling.
+- Added destination-scoped duplicate detection with an inline message. After a
+  successful addition, search remains active and a non-blocking bottom notice
+  offers an optional link to the destination library.
 - Added unit/component coverage for source normalization, access-constrained
   query construction, header variants, control order, retained values, and
   scanner navigation. Extended browser smoke assertions for the new header.
@@ -28,7 +33,7 @@
 - `npm run format:check` passed.
 - `npm run lint` passed.
 - `npm run typecheck` passed.
-- `npm test` passed: 9 files, 27 tests.
+- `npm test` passed: 11 files, 30 tests.
 - `npm run build` passed.
 - `npm run db:migrate` was blocked by `P1001`: PostgreSQL is unavailable at
   `db:5432`.
