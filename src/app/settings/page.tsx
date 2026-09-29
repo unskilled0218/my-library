@@ -6,6 +6,7 @@ import {
   updateDisplayAction,
   updateLanguageAction,
 } from '@/app/actions'
+import { DeleteIcon, SaveIcon } from '@/components/icons'
 import { ImportPanel } from '@/components/import-panel'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -94,7 +95,13 @@ export default async function SettingsPage({
                 <option value="EN">{messages.english}</option>
               </select>
             </label>
-            <button type="submit">{messages.saveLanguage}</button>
+            <button
+              className="h-10 w-10 p-0"
+              type="submit"
+              aria-label={messages.saveLanguage}
+            >
+              <SaveIcon />
+            </button>
           </form>
         </section>
         <section id="account-settings" className="panel">
@@ -193,7 +200,13 @@ export default async function SettingsPage({
                 </label>
               ))}
             </div>
-            <button type="submit">{messages.saveDisplay}</button>
+            <button
+              className="h-10 w-10 p-0"
+              type="submit"
+              aria-label={messages.saveDisplay}
+            >
+              <SaveIcon />
+            </button>
           </form>
         </section>
         <section id="shelf-tag-settings" className="panel">
@@ -236,18 +249,22 @@ export default async function SettingsPage({
                     required
                     aria-label={`${messages.rename} ${tag.name}`}
                   />
-                  <button className="button-secondary shrink-0" type="submit">
-                    {messages.save}
+                  <button
+                    className="button-secondary h-10 w-10 shrink-0 p-0"
+                    type="submit"
+                    aria-label={`${messages.save} ${tag.name}`}
+                  >
+                    <SaveIcon />
                   </button>
                 </form>
                 <form action={deleteLocationAction}>
                   <input type="hidden" name="tagId" value={tag.id} />
                   <button
-                    className="button-secondary w-full sm:w-auto"
+                    className="button-secondary h-10 w-full p-0 sm:w-10"
                     type="submit"
                     aria-label={`${messages.delete} ${tag.name}`}
                   >
-                    {messages.delete}
+                    <DeleteIcon />
                   </button>
                 </form>
               </div>

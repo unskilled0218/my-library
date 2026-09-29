@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { CloseIcon } from '@/components/icons'
 import { useLanguage } from '@/components/locale-provider'
 import { commonMessages } from '@/lib/i18n/common'
 import { searchMessages } from '@/lib/i18n/search'
@@ -58,11 +59,12 @@ export function KyoboReviewModal({
           </h2>
           <Link
             ref={closeLink}
-            className="button button-secondary shrink-0"
+            className="button button-secondary h-12 w-12 shrink-0 p-0"
             href={closeHref}
             scroll={false}
+            aria-label={common.close}
           >
-            {common.close}
+            <CloseIcon />
           </Link>
         </div>
         <div className="mt-5">{children}</div>

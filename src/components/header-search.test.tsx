@@ -76,12 +76,17 @@ describe('HeaderSearch', () => {
     expect(source.compareDocumentPosition(submit)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
+    expect(submit).not.toHaveTextContent('검색')
+    expect(submit.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(submit.querySelector('svg')).toHaveAttribute('focusable', 'false')
   })
 
   it('opens the mobile scanner and searches with the selected source', () => {
     renderSearch(true)
     const camera = screen.getByRole('button', { name: 'ISBN 스캔' })
     expect(camera).toHaveClass('sm:hidden')
+    expect(camera).not.toHaveTextContent('스캔')
+    expect(camera.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
 
     fireEvent.click(camera)
     expect(screen.getByRole('dialog', { name: 'ISBN 스캔' })).toBeVisible()
@@ -117,9 +122,11 @@ describe('HeaderSearch', () => {
       'Title, author, or ISBN',
     )
     expect(screen.getByLabelText('Search source')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Search' })).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'Scan ISBN' }),
-    ).toBeInTheDocument()
+    const search = screen.getByRole('button', { name: 'Search' })
+    const scan = screen.getByRole('button', { name: 'Scan ISBN' })
+    expect(search).not.toHaveTextContent('Search')
+    expect(scan).not.toHaveTextContent('Scan')
+    expect(search.querySelector('svg')).toBeInTheDocument()
+    expect(scan.querySelector('svg')).toBeInTheDocument()
   })
 })

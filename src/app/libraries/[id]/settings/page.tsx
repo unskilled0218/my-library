@@ -6,6 +6,7 @@ import {
   shareLibraryAction,
   updateLibraryAction,
 } from '@/app/actions'
+import { DeleteIcon, SaveIcon } from '@/components/icons'
 import { libraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -194,7 +195,13 @@ export default async function LibrarySettingsPage({
                   rows={3}
                 />
               </label>
-              <button type="submit">{messages.saveLibrary}</button>
+              <button
+                className="h-10 w-10 p-0"
+                type="submit"
+                aria-label={messages.saveLibrary}
+              >
+                <SaveIcon />
+              </button>
             </form>
             <form
               id="delete-library-form"
@@ -202,8 +209,12 @@ export default async function LibrarySettingsPage({
               className="mt-6 border-t border-rust/20 pt-5"
             >
               <input type="hidden" name="libraryId" value={id} />
-              <button className="bg-rust" type="submit">
-                {messages.deleteLibrary}
+              <button
+                className="h-10 w-10 bg-rust p-0"
+                type="submit"
+                aria-label={messages.deleteLibrary}
+              >
+                <DeleteIcon />
               </button>
             </form>
           </section>

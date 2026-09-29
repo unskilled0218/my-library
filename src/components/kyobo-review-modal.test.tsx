@@ -41,6 +41,9 @@ describe('KyoboReviewModal', () => {
     expect(dialog).toBeVisible()
     expect(close).toHaveAttribute('href', closeHref)
     expect(close).toHaveFocus()
+    expect(close).not.toHaveTextContent('닫기')
+    expect(close.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(close.querySelector('svg')).toHaveAttribute('focusable', 'false')
     expect(document.body).toHaveStyle({ overflow: 'hidden' })
 
     fireEvent.keyDown(window, { key: 'Escape' })
@@ -55,6 +58,8 @@ describe('KyoboReviewModal', () => {
     expect(
       screen.getByRole('dialog', { name: 'Kyobo book details' }),
     ).toBeVisible()
-    expect(screen.getByRole('link', { name: 'Close' })).toBeInTheDocument()
+    const close = screen.getByRole('link', { name: 'Close' })
+    expect(close).not.toHaveTextContent('Close')
+    expect(close.querySelector('svg')).toBeInTheDocument()
   })
 })

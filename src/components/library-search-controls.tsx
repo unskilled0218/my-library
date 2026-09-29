@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { CloseIcon, FilterIcon } from '@/components/icons'
 import { useLanguage } from '@/components/locale-provider'
 import { commonMessages } from '@/lib/i18n/common'
 import { librariesMessages } from '@/lib/i18n/libraries'
@@ -50,13 +51,14 @@ export function LibrarySearchControls({
           </button>
           <button
             id="library-filter-toggle"
-            className="button-secondary"
+            className="button-secondary h-10 w-10 p-0"
             type="button"
+            aria-label={messages.filter}
             aria-expanded={filtersVisible}
             aria-controls="library-filter-panel"
             onClick={() => setFiltersVisible(true)}
           >
-            {messages.filter}
+            <FilterIcon />
           </button>
         </div>
       </div>
@@ -119,11 +121,12 @@ export function LibrarySearchControls({
         </select>
         <button
           id="library-hide-filters"
-          className="button-secondary sm:col-span-2 lg:col-span-4 lg:justify-self-end"
+          className="button-secondary h-12 w-12 p-0 sm:col-span-2 sm:justify-self-end lg:col-span-4"
           type="button"
+          aria-label={messages.hideFilters}
           onClick={() => setFiltersVisible(false)}
         >
-          {messages.hideFilters}
+          <CloseIcon />
         </button>
       </div>
     </form>
