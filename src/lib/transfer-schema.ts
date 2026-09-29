@@ -6,6 +6,7 @@ const genrePathSchema = z
     z.object({ name: z.string().min(1).max(100), url: kyoboGenreUrlSchema }),
   )
   .min(1)
+  .max(12)
 
 const bookSchema = z.object({
   title: z.string().min(1).max(300),
@@ -34,7 +35,7 @@ const bookSchema = z.object({
     .optional(),
 })
 
-const settingsSchema = z.object({
+export const settingsSchema = z.object({
   defaultView: z.enum(['LIST', 'GRID']),
   showCover: z.boolean(),
   showTitle: z.boolean(),
@@ -67,4 +68,35 @@ export const backupSchema = z.discriminatedUnion('version', [
   }),
 ])
 
+export const accountBackupSchema = z
+  .object({
+    version: z.literal(1),
+    settings: settingsSchema.optional(),
+    shelfTags: z.array(z.string().max(80)).max(1_000).default([]),
+    libraries: z
+      .array(
+        z.object({
+          name: z.string().min(1).max(100),
+          description: z.string().max(500),
+          books: z.array(bookSchema).max(5_000),
+        }),
+      )
+      .max(100),
+  })
+  .superRefine((backup, context) => {
+    const books = backup.libraries.reduce(
+      (total, library) => total + library.books.length,
+      0,
+    )
+    if (books > 5_000)
+      context.addIssue({
+        code: 'custom',
+        path: ['libraries'],
+        message: 'Account backups may contain at most 5,000 books',
+      })
+  })
+
 export type ImportBook = z.infer<typeof bookSchema>
+export type AccountImportLibrary = z.infer<
+  typeof accountBackupSchema
+>['libraries'][number]

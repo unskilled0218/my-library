@@ -57,6 +57,7 @@ npm run kyobo:probe -- "너의 췌장을 먹고 싶어"
 - Shelf tags belong to a library owner and are shared by all libraries that account owns. Editors can assign the owner's tags to books but cannot manage the owner's global tag collection.
 - Library-specific settings retain their existing permissions: statistics are readable by library members, while sharing, ownership, transfer, and audit controls are owner-only.
 - Version 2 library backups preserve book shelf assignments by name but do not contain account-wide display settings. Version 1 backups remain importable; their legacy display block is ignored.
+- General Settings can export and import one versioned JSON backup containing every owned library plus account display preferences and shelf tags. Imports create new libraries without replacing existing collections; account backup files are limited to 50 MB, 100 libraries, and 5,000 books.
 
 ## Security boundaries
 

@@ -95,6 +95,15 @@ test('a user can register and receives a default library', async ({ page }) => {
   await expect(page.getByLabel('Current password')).toBeVisible()
   await expect(page.getByLabel('New password', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Confirm new password')).toBeVisible()
+  await expect(page.locator('#global-settings-list')).toHaveAttribute(
+    'data-layout',
+    'list',
+  )
+  await expect(page.locator('#export-all-libraries')).toHaveAttribute(
+    'href',
+    '/api/settings/transfer',
+  )
+  await expect(page.locator('#account-import-panel')).toBeVisible()
 
   await page.locator('#add-shelf-tag-form input[name="name"]').fill('Study')
   await page.getByRole('button', { name: 'Add shelf tag' }).click()
@@ -123,6 +132,10 @@ test('a user can register and receives a default library', async ({ page }) => {
   await expect(
     page.getByRole('heading', { name: 'Library settings' }),
   ).toBeVisible()
+  await expect(page.locator('[id^="library-settings-page-"]')).toHaveAttribute(
+    'data-layout',
+    'list',
+  )
   await expect(page.getByRole('link', { name: /Statistics/ })).toBeVisible()
   await expect(
     page.getByRole('link', { name: /Import \/ export/ }),

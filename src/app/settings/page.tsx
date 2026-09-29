@@ -5,6 +5,7 @@ import {
   renameLocationAction,
   updateDisplayAction,
 } from '@/app/actions'
+import { ImportPanel } from '@/components/import-panel'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
 
@@ -35,7 +36,7 @@ export default async function SettingsPage({
   return (
     <div
       id="global-settings-page"
-      className="mx-auto max-w-6xl px-5 py-12 md:px-8"
+      className="mx-auto max-w-4xl px-5 py-12 md:px-8"
     >
       <p className="eyebrow">General</p>
       <h1 className="mt-2 font-serif text-5xl font-black">Settings</h1>
@@ -52,7 +53,11 @@ export default async function SettingsPage({
           {error}
         </p>
       )}
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <div
+        id="global-settings-list"
+        data-layout="list"
+        className="mt-8 space-y-6"
+      >
         <section id="account-settings" className="panel">
           <p className="eyebrow">Account</p>
           <h2 className="mt-2 font-serif text-3xl font-bold">Password</h2>
@@ -149,7 +154,7 @@ export default async function SettingsPage({
             <button type="submit">Save display</button>
           </form>
         </section>
-        <section id="shelf-tag-settings" className="panel lg:col-span-2">
+        <section id="shelf-tag-settings" className="panel">
           <p className="eyebrow">Locations</p>
           <h2 className="mt-2 font-serif text-3xl font-bold">Shelf tags</h2>
           <p className="mt-3 text-sm text-ink/60">
@@ -203,6 +208,41 @@ export default async function SettingsPage({
             {locationTags.length === 0 && (
               <p className="text-sm text-ink/60">No shelf tags yet.</p>
             )}
+          </div>
+        </section>
+        <section id="account-transfer-settings" className="panel">
+          <p className="eyebrow">Portability</p>
+          <h2 className="mt-2 font-serif text-3xl font-bold">
+            All libraries backup
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-ink/60">
+            Export every library you own with books, covers, genres, shelf
+            assignments, shelf tags, and display preferences. Importing creates
+            new libraries and does not replace existing collections. Account
+            backups are limited to 50 MB.
+          </p>
+          <div className="mt-5 space-y-6">
+            <div>
+              <h3 className="font-serif text-xl font-bold">Export</h3>
+              <a
+                id="export-all-libraries"
+                className="button mt-3"
+                href="/api/settings/transfer"
+              >
+                Download all libraries
+              </a>
+            </div>
+            <div className="border-t border-ink/10 pt-5">
+              <h3 className="font-serif text-xl font-bold">Import</h3>
+              <p className="mt-2 mb-4 text-sm text-ink/60">
+                Preview an account backup before creating its libraries.
+              </p>
+              <ImportPanel
+                id="account-import-panel"
+                endpoint="/api/settings/transfer"
+                account
+              />
+            </div>
           </div>
         </section>
       </div>

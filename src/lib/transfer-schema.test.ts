@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { backupSchema } from '@/lib/transfer-schema'
+import { accountBackupSchema, backupSchema } from '@/lib/transfer-schema'
 
 const settings = {
   defaultView: 'LIST',
@@ -47,6 +47,36 @@ describe('library backup schema', () => {
         version: 3,
         library: { name: 'Unknown', description: '' },
         books: [],
+      }).success,
+    ).toBe(false)
+  })
+})
+
+describe('account backup schema', () => {
+  it('accepts settings, shelf tags, and multiple complete libraries', () => {
+    const result = accountBackupSchema.safeParse({
+      version: 1,
+      settings,
+      shelfTags: ['Study'],
+      libraries: [
+        { name: 'First', description: '', books: [] },
+        { name: 'Second', description: 'Another library', books: [] },
+      ],
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.libraries).toHaveLength(2)
+      expect(result.data.shelfTags).toEqual(['Study'])
+    }
+  })
+
+  it('rejects unknown account backup versions', () => {
+    expect(
+      accountBackupSchema.safeParse({
+        version: 2,
+        shelfTags: [],
+        libraries: [],
       }).success,
     ).toBe(false)
   })

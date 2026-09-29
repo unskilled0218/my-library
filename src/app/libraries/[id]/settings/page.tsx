@@ -36,6 +36,7 @@ export default async function LibrarySettingsPage({
   return (
     <div
       id={`library-settings-page-${id}`}
+      data-layout="list"
       className="mx-auto max-w-6xl px-5 py-12 md:px-8"
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -52,7 +53,7 @@ export default async function LibrarySettingsPage({
       </div>
       <nav
         id="library-settings-navigation"
-        className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        className="mt-8 space-y-3"
         aria-label="Library settings"
       >
         <Link
@@ -88,10 +89,7 @@ export default async function LibrarySettingsPage({
         )}
       </nav>
       {access === 'OWNER' && (
-        <div
-          id="library-owner-settings"
-          className="mt-8 grid gap-6 lg:grid-cols-2"
-        >
+        <div id="library-owner-settings" className="mt-8 space-y-6">
           <section id="library-sharing-settings" className="panel">
             <p className="eyebrow">Sharing</p>
             <h2 className="mt-2 font-serif text-3xl font-bold">Members</h2>
