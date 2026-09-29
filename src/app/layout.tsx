@@ -60,7 +60,7 @@ export default async function RootLayout({
                       {user.loginId}
                     </span>
                     <Link
-                      className="button button-secondary h-10 w-10 p-0"
+                      className="button button-secondary h-12 w-12 p-0"
                       href="/settings"
                       aria-label={messages.settings}
                     >

@@ -138,7 +138,7 @@ export default async function LibraryPage({
         <div className="flex flex-wrap gap-2">
           <Link
             id="library-settings-link"
-            className="button button-secondary h-10 w-10 p-0"
+            className="button button-secondary h-12 w-12 p-0"
             href={`/libraries/${id}/settings`}
             aria-label={common.settings}
           >

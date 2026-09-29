@@ -74,7 +74,7 @@ export function IsbnScanner({
         </p>
       )}
       <button
-        className="button-secondary w-full"
+        className="button-secondary min-h-12 w-full"
         type="button"
         autoFocus
         aria-label={messages.closeCamera}

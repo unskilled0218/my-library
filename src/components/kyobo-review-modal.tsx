@@ -59,7 +59,7 @@ export function KyoboReviewModal({
           </h2>
           <Link
             ref={closeLink}
-            className="button button-secondary h-10 w-10 shrink-0 p-0"
+            className="button button-secondary h-12 w-12 shrink-0 p-0"
             href={closeHref}
             scroll={false}
             aria-label={common.close}

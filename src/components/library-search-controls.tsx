@@ -121,7 +121,7 @@ export function LibrarySearchControls({
         </select>
         <button
           id="library-hide-filters"
-          className="button-secondary h-10 w-10 p-0 sm:col-span-2 sm:justify-self-end lg:col-span-4"
+          className="button-secondary h-12 w-12 p-0 sm:col-span-2 sm:justify-self-end lg:col-span-4"
           type="button"
           aria-label={messages.hideFilters}
           onClick={() => setFiltersVisible(false)}
