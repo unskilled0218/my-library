@@ -2,16 +2,17 @@ import { expect, test } from '@playwright/test'
 
 test('landing page is usable', async ({ page }) => {
   await page.goto('/')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ko-KR')
   await expect(
-    page.getByRole('heading', { name: 'Every book has a place and a story.' }),
+    page.getByRole('heading', {
+      name: '모든 책에는 자리와 이야기가 있습니다.',
+    }),
   ).toBeVisible()
-  await expect(
-    page.getByRole('link', { name: 'Start a library' }),
-  ).toBeVisible()
+  await expect(page.getByRole('link', { name: '서재 시작하기' })).toBeVisible()
   const headerSearch = page.locator('#header-search-form')
-  await expect(headerSearch.getByLabel('Search books')).toBeVisible()
+  await expect(headerSearch.getByLabel('책 검색')).toBeVisible()
   await expect(headerSearch.locator('#header-search-source')).toHaveText(
-    'Kyobo',
+    '교보문고',
   )
   await expect(headerSearch.locator('option[value="library"]')).toHaveCount(0)
 })
@@ -19,14 +20,25 @@ test('landing page is usable', async ({ page }) => {
 test('a user can register and receives a default library', async ({ page }) => {
   const loginId = `reader-${Date.now()}-${test.info().project.name}`
   await page.goto('/register')
-  await page.getByLabel('Login ID').fill(loginId)
-  await page.getByLabel('Password').fill('correct-horse-library-staple')
-  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('로그인 ID').fill(loginId)
+  await page.getByLabel('비밀번호').fill('correct-horse-library-staple')
+  await page.getByRole('button', { name: '계속' }).click()
   await expect(page).toHaveURL(/\/libraries/)
+  await expect(page.getByRole('heading', { name: '내 서재' })).toBeVisible()
+
+  await page
+    .locator('#site-navigation')
+    .getByRole('link', { name: '설정' })
+    .click()
+  await page.getByLabel('언어').selectOption('EN')
+  await page.getByRole('button', { name: '언어 저장' }).click()
+  await expect(page.getByText('Display language updated.')).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+  await page.getByRole('link', { name: 'MY / LIBRARY' }).click()
   await expect(
     page.getByRole('heading', { name: 'Your libraries' }),
   ).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'My library' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '내 서재' })).toBeVisible()
 
   const createForm = page.locator('#library-create-form')
   const libraryCards = page.locator('#library-card-list')
@@ -44,7 +56,7 @@ test('a user can register and receives a default library', async ({ page }) => {
     }),
   ).toBe(true)
 
-  await page.getByRole('heading', { name: 'My library' }).click()
+  await page.getByRole('heading', { name: '내 서재' }).click()
   const searchRow = page.locator('#library-search-row')
   await expect(searchRow).toBeVisible()
   await expect(searchRow.locator('#library-search-input')).toBeVisible()

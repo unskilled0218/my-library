@@ -3,13 +3,19 @@
 import { useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { IsbnScanner } from '@/components/isbn-scanner'
+import { useLanguage } from '@/components/locale-provider'
 import type { SearchSource } from '@/lib/global-search'
+import { commonMessages } from '@/lib/i18n/common'
+import { searchMessages } from '@/lib/i18n/search'
 
 export function HeaderSearch({ authenticated }: { authenticated: boolean }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const router = useRouter()
   const form = useRef<HTMLFormElement>(null)
+  const language = useLanguage()
+  const messages = searchMessages[language]
+  const common = commonMessages[language]
   const submittedSource =
     pathname === '/search' ? searchParams.get('source') : null
   const currentSource: SearchSource = authenticated
@@ -45,8 +51,8 @@ export function HeaderSearch({ authenticated }: { authenticated: boolean }) {
           defaultValue={
             pathname === '/search' ? (searchParams.get('q') ?? '') : ''
           }
-          placeholder="Title, author, or ISBN"
-          aria-label="Search books"
+          placeholder={messages.searchPlaceholder}
+          aria-label={messages.searchBooks}
           maxLength={120}
           required
         />
@@ -56,11 +62,11 @@ export function HeaderSearch({ authenticated }: { authenticated: boolean }) {
             className="w-24 shrink-0 sm:w-28"
             name="source"
             defaultValue={currentSource}
-            aria-label="Search source"
+            aria-label={messages.searchSource}
           >
-            <option value="all">All</option>
-            <option value="kyobo">Kyobo</option>
-            <option value="library">Library</option>
+            <option value="all">{messages.allSources}</option>
+            <option value="kyobo">{messages.kyoboSource}</option>
+            <option value="library">{messages.librarySource}</option>
           </select>
         ) : (
           <>
@@ -69,21 +75,21 @@ export function HeaderSearch({ authenticated }: { authenticated: boolean }) {
               id="header-search-source"
               className="inline-flex min-h-10 shrink-0 items-center rounded-xl border border-ink/20 bg-white/80 px-3 text-sm"
             >
-              Kyobo
+              {messages.kyoboSource}
             </span>
           </>
         )}
         <button id="header-search-submit" className="shrink-0" type="submit">
-          Search
+          {common.search}
         </button>
         <button
           id="header-isbn-camera"
           className="button-secondary shrink-0 sm:hidden"
           type="button"
-          aria-label="Scan ISBN"
+          aria-label={messages.scanIsbn}
           onClick={() => setScannerOpen(true)}
         >
-          Scan
+          {messages.scan}
         </button>
       </form>
       {scannerOpen && (
@@ -99,7 +105,7 @@ export function HeaderSearch({ authenticated }: { authenticated: boolean }) {
               id="header-scanner-title"
               className="font-serif text-2xl font-bold"
             >
-              Scan an ISBN
+              {messages.scanTitle}
             </h2>
             <div className="mt-4">
               <IsbnScanner

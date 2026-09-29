@@ -1,6 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useLanguage } from '@/components/locale-provider'
+import { commonMessages } from '@/lib/i18n/common'
+import { librariesMessages } from '@/lib/i18n/libraries'
 
 type Option = {
   id: string
@@ -26,6 +29,9 @@ export function LibrarySearchControls({
   genres: Option[]
 }) {
   const [filtersVisible, setFiltersVisible] = useState(false)
+  const language = useLanguage()
+  const messages = librariesMessages[language]
+  const common = commonMessages[language]
 
   return (
     <form id="library-filters" className="panel mt-8">
@@ -35,12 +41,12 @@ export function LibrarySearchControls({
           className="min-w-0 flex-1"
           name="q"
           defaultValue={query.q}
-          placeholder="Search title, author, genre, ISBN, notes..."
-          aria-label="Search books"
+          placeholder={messages.searchPlaceholder}
+          aria-label={messages.searchBooks}
         />
         <div className="flex shrink-0 gap-2">
           <button id="library-search-button" type="submit">
-            Search
+            {common.search}
           </button>
           <button
             id="library-filter-toggle"
@@ -50,7 +56,7 @@ export function LibrarySearchControls({
             aria-controls="library-filter-panel"
             onClick={() => setFiltersVisible(true)}
           >
-            Filter
+            {messages.filter}
           </button>
         </div>
       </div>
@@ -62,37 +68,37 @@ export function LibrarySearchControls({
         <select
           name="reading"
           defaultValue={query.reading ?? ''}
-          aria-label="Reading state"
+          aria-label={messages.readingState}
         >
-          <option value="">All reading states</option>
-          <option value="NOT_STARTED">Not started</option>
-          <option value="READING">Reading</option>
-          <option value="DONE">Done</option>
+          <option value="">{messages.allReadingStates}</option>
+          <option value="NOT_STARTED">{common.notStarted}</option>
+          <option value="READING">{common.reading}</option>
+          <option value="DONE">{common.done}</option>
         </select>
         <select
           name="format"
           defaultValue={query.format ?? ''}
-          aria-label="Format"
+          aria-label={messages.format}
         >
-          <option value="">All formats</option>
-          <option value="PHYSICAL">Physical</option>
-          <option value="EBOOK">Ebook</option>
+          <option value="">{messages.allFormats}</option>
+          <option value="PHYSICAL">{common.physical}</option>
+          <option value="EBOOK">{common.ebook}</option>
         </select>
         <select
           name="ownership"
           defaultValue={query.ownership ?? ''}
-          aria-label="Ownership"
+          aria-label={messages.ownership}
         >
-          <option value="">All ownership</option>
-          <option value="HAVE">Have</option>
-          <option value="DONT_HAVE">Do not have</option>
+          <option value="">{messages.allOwnership}</option>
+          <option value="HAVE">{common.have}</option>
+          <option value="DONT_HAVE">{common.dontHave}</option>
         </select>
         <select
           name="location"
           defaultValue={query.location ?? ''}
-          aria-label="Location"
+          aria-label={messages.location}
         >
-          <option value="">All locations</option>
+          <option value="">{messages.allLocations}</option>
           {locations.map((location) => (
             <option key={location.id} value={location.id}>
               {location.name}
@@ -102,9 +108,9 @@ export function LibrarySearchControls({
         <select
           name="genre"
           defaultValue={query.genre ?? ''}
-          aria-label="Genre"
+          aria-label={messages.genre}
         >
-          <option value="">All genres</option>
+          <option value="">{messages.allGenres}</option>
           {genres.map((genre) => (
             <option key={genre.id} value={genre.id}>
               {genre.name}
@@ -117,7 +123,7 @@ export function LibrarySearchControls({
           type="button"
           onClick={() => setFiltersVisible(false)}
         >
-          Hide filters
+          {messages.hideFilters}
         </button>
       </div>
     </form>

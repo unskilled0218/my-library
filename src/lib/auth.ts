@@ -1,9 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto'
+import { cache } from 'react'
 import { compare, hash } from 'bcryptjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
+import { DEFAULT_LANGUAGE } from '@/lib/i18n/config'
+import { setLanguageCookie } from '@/lib/i18n/cookie'
 import { normalizeLoginId, passwordSchema } from '@/lib/validation'
 
 const USER_COOKIE = 'library_user_session'
@@ -38,7 +41,7 @@ export async function createUser(loginIdInput: string, passwordInput: string) {
       settings: { create: {} },
       libraries: {
         create: {
-          name: 'My library',
+          name: '내 서재',
         },
       },
     },
@@ -47,7 +50,10 @@ export async function createUser(loginIdInput: string, passwordInput: string) {
 
 export async function signInUser(loginIdInput: string, password: string) {
   const loginId = normalizeLoginId(loginIdInput)
-  const user = await db.user.findUnique({ where: { loginId } })
+  const user = await db.user.findUnique({
+    where: { loginId },
+    include: { settings: { select: { language: true } } },
+  })
   if (!user || user.disabledAt || !(await compare(password, user.passwordHash)))
     throw new Error('Invalid credentials')
   const token = randomBytes(32).toString('base64url')
@@ -59,6 +65,7 @@ export async function signInUser(loginIdInput: string, password: string) {
     },
   })
   await setSessionCookie(USER_COOKIE, token)
+  await setLanguageCookie(user.settings?.language ?? DEFAULT_LANGUAGE)
   return user
 }
 
@@ -83,7 +90,7 @@ export async function signInAdmin(loginIdInput: string, password: string) {
   return admin
 }
 
-export async function currentUser() {
+export const currentUser = cache(async function currentUser() {
   const token = (await cookies()).get(USER_COOKIE)?.value
   if (!token) return null
   const session = await db.userSession.findUnique({
@@ -93,9 +100,9 @@ export async function currentUser() {
   if (!session || session.expiresAt <= new Date() || session.user.disabledAt)
     return null
   return session.user
-}
+})
 
-export async function currentAdmin() {
+export const currentAdmin = cache(async function currentAdmin() {
   const token = (await cookies()).get(ADMIN_COOKIE)?.value
   if (!token) return null
   const session = await db.adminSession.findUnique({
@@ -105,7 +112,7 @@ export async function currentAdmin() {
   if (!session || session.expiresAt <= new Date() || session.admin.disabledAt)
     return null
   return session.admin
-}
+})
 
 export async function requireUser() {
   const user = await currentUser()

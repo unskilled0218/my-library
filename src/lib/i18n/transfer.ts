@@ -1,0 +1,98 @@
+import { defineMessages } from '@/lib/i18n/config'
+
+export const transferMessages = defineMessages(
+  {
+    eyebrow: '이동성',
+    title: '가져오기 및 내보내기',
+    backToSettings: '설정으로 돌아가기',
+    export: '내보내기',
+    exportBody:
+      'JSON은 서재 정보, 장르 경로, 독서 데이터, 책장 위치 및 표지 이미지를 보존합니다. 계정 전체 화면 설정은 별도로 관리됩니다. CSV는 스프레드시트 편집에 적합합니다.',
+    downloadJson: 'JSON 다운로드',
+    downloadCsv: 'CSV 다운로드',
+    import: '가져오기',
+    importBody:
+      '서재를 변경하기 전에 유효성 검사와 중복 항목을 미리 확인하세요.',
+    importFile: '가져올 파일',
+    previewImport: '가져오기 미리보기',
+    applyImport: '가져오기 적용',
+    working: '처리 중...',
+    previewReady: '미리보기가 준비되었습니다.',
+    importFailed: '가져오기에 실패했습니다.',
+    librariesUnit: '개 서재',
+    recordsUnit: '개 레코드',
+    duplicatesUnit: '개 중복',
+    newBooksUnit: '권의 새 도서',
+    accountImportResult: '{libraries}와 {books}을 가져왔습니다.',
+    libraryImportResult: '{books}을 가져왔고 {duplicates}을 건너뛰었습니다.',
+    invalidOrOversizedFile: '파일이 올바르지 않거나 허용 크기를 초과했습니다.',
+    fileCouldNotBeParsed: '파일을 분석할 수 없습니다.',
+    invalidBackupVersion: '파일이 백업 버전 1 또는 2 형식과 일치하지 않습니다.',
+    accountTransferLimit: '계정이 지원되는 전송 한도를 초과했습니다.',
+    accountBackupSizeLimit: '계정 백업이 50MB 전송 한도를 초과했습니다.',
+    tooManyAttempts: '가져오기 시도가 너무 많습니다. 나중에 다시 시도하세요.',
+    invalidAccountBackup: '50MB 이하의 올바른 계정 JSON 백업을 선택하세요.',
+    accountBackupCouldNotBeParsed: '계정 백업을 분석할 수 없습니다.',
+    invalidAccountBackupVersion:
+      '파일이 계정 백업 버전 1 또는 2 형식과 일치하지 않습니다.',
+  },
+  {
+    eyebrow: 'Portability',
+    title: 'Import and export',
+    backToSettings: 'Back to settings',
+    export: 'Export',
+    exportBody:
+      'JSON preserves library details, genre paths, reading data, shelf assignments, and cover images. Account-wide display settings are managed separately. CSV is designed for spreadsheet editing.',
+    downloadJson: 'Download JSON',
+    downloadCsv: 'Download CSV',
+    import: 'Import',
+    importBody:
+      'Preview validation and duplicates before changing the library.',
+    importFile: 'File to import',
+    previewImport: 'Preview import',
+    applyImport: 'Apply import',
+    working: 'Working...',
+    previewReady: 'Preview ready',
+    importFailed: 'Import failed',
+    librariesUnit: 'libraries',
+    recordsUnit: 'records',
+    duplicatesUnit: 'duplicates',
+    newBooksUnit: 'new books',
+    accountImportResult: 'Imported {libraries} and {books}.',
+    libraryImportResult: 'Imported {books}; skipped {duplicates}.',
+    invalidOrOversizedFile: 'Invalid or oversized file',
+    fileCouldNotBeParsed: 'The file could not be parsed',
+    invalidBackupVersion: 'The file does not match backup version 1 or 2',
+    accountTransferLimit: 'The account exceeds the supported transfer limits',
+    accountBackupSizeLimit:
+      'The account backup exceeds the 50 MB transfer limit',
+    tooManyAttempts: 'Too many import attempts. Try again later.',
+    invalidAccountBackup: 'Select a valid account JSON backup under 50 MB',
+    accountBackupCouldNotBeParsed: 'The account backup could not be parsed',
+    invalidAccountBackupVersion:
+      'The file does not match account backup version 1 or 2',
+  },
+)
+
+export const transferErrorKeys = {
+  'invalid-or-oversized-file': 'invalidOrOversizedFile',
+  'file-parse-failed': 'fileCouldNotBeParsed',
+  'invalid-backup-version': 'invalidBackupVersion',
+  'account-transfer-limit': 'accountTransferLimit',
+  'account-size-limit': 'accountBackupSizeLimit',
+  'import-rate-limited': 'tooManyAttempts',
+  'invalid-account-file': 'invalidAccountBackup',
+  'account-parse-failed': 'accountBackupCouldNotBeParsed',
+  'Invalid or oversized file': 'invalidOrOversizedFile',
+  'The file could not be parsed': 'fileCouldNotBeParsed',
+  'The file does not match backup version 1 or 2': 'invalidBackupVersion',
+  'The account exceeds the supported transfer limits': 'accountTransferLimit',
+  'The account backup exceeds the 50 MB transfer limit':
+    'accountBackupSizeLimit',
+  'Too many import attempts. Try again later.': 'tooManyAttempts',
+  'Select a valid account JSON backup under 50 MB': 'invalidAccountBackup',
+  'The account backup could not be parsed': 'accountBackupCouldNotBeParsed',
+  'The file does not match account backup version 1':
+    'invalidAccountBackupVersion',
+  'invalid-account-backup-version': 'invalidAccountBackupVersion',
+} as const

@@ -1,6 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/components/locale-provider'
+import { formatCount } from '@/lib/i18n/config'
+import { transferErrorKeys, transferMessages } from '@/lib/i18n/transfer'
 
 export function ImportPanel({
   libraryId,
@@ -13,6 +17,9 @@ export function ImportPanel({
   id?: string
   account?: boolean
 }) {
+  const language = useLanguage()
+  const router = useRouter()
+  const messages = transferMessages[language]
   const [file, setFile] = useState<File | null>(null)
   const [summary, setSummary] = useState<{
     books: number
@@ -22,11 +29,23 @@ export function ImportPanel({
   } | null>(null)
   const [message, setMessage] = useState('')
   const [pending, setPending] = useState(false)
+  const summaryText = summary
+    ? [
+        ...(summary.libraries === undefined
+          ? []
+          : [
+              `${summary.libraries}${language === 'KO' ? '' : ' '}${messages.librariesUnit}`,
+            ]),
+        `${summary.books}${language === 'KO' ? '' : ' '}${messages.recordsUnit}`,
+        `${summary.duplicates}${language === 'KO' ? '' : ' '}${messages.duplicatesUnit}`,
+        `${summary.willCreate}${language === 'KO' ? '' : ' '}${messages.newBooksUnit}`,
+      ].join(' · ')
+    : ''
 
   async function send(apply: boolean) {
     if (!file) return
     setPending(true)
-    setMessage('Working...')
+    setMessage(messages.working)
     try {
       const body = new FormData()
       body.set('file', file)
@@ -39,20 +58,45 @@ export function ImportPanel({
         },
       )
       const result = await response.json()
-      if (!response.ok) return setMessage(result.error ?? 'Import failed')
+      if (!response.ok) {
+        const errorKey =
+          transferErrorKeys[result.error as keyof typeof transferErrorKeys]
+        return setMessage(errorKey ? messages[errorKey] : messages.importFailed)
+      }
       if (!apply) {
         setSummary(result)
-        setMessage('Preview ready')
+        setMessage(messages.previewReady)
       } else {
+        const books = formatCount(language, result.imported, '권', 'book')
+        const duplicates = formatCount(
+          language,
+          result.skipped,
+          '개 중복 항목',
+          'duplicate',
+        )
         setMessage(
           account
-            ? `Imported ${result.libraries} libraries and ${result.imported} books.`
-            : `Imported ${result.imported}; skipped ${result.skipped} duplicates.`,
+            ? messages.accountImportResult
+                .replace(
+                  '{libraries}',
+                  formatCount(
+                    language,
+                    result.libraries,
+                    '개 서재',
+                    'library',
+                    'libraries',
+                  ),
+                )
+                .replace('{books}', books)
+            : messages.libraryImportResult
+                .replace('{books}', books)
+                .replace('{duplicates}', duplicates),
         )
         setSummary(null)
+        if (account) router.refresh()
       }
     } catch {
-      setMessage('Import failed')
+      setMessage(messages.importFailed)
     } finally {
       setPending(false)
     }
@@ -60,7 +104,11 @@ export function ImportPanel({
 
   return (
     <div id={id}>
+      <label className="sr-only" htmlFor={`${id}-file`}>
+        {messages.importFile}
+      </label>
       <input
+        id={`${id}-file`}
         type="file"
         accept={
           account
@@ -78,23 +126,18 @@ export function ImportPanel({
         disabled={!file || pending}
         onClick={() => send(false)}
       >
-        Preview import
+        {messages.previewImport}
       </button>
       {summary && (
         <div className="mt-4 rounded-xl bg-gold/15 p-4 text-sm">
-          <p>
-            {summary.libraries !== undefined &&
-              `${summary.libraries} libraries · `}
-            {summary.books} records · {summary.duplicates} duplicates ·{' '}
-            {summary.willCreate} new books
-          </p>
+          <p>{summaryText}</p>
           <button
             className="mt-3"
             type="button"
             disabled={pending}
             onClick={() => send(true)}
           >
-            Apply import
+            {messages.applyImport}
           </button>
         </div>
       )}

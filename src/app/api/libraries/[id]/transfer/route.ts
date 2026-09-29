@@ -141,7 +141,7 @@ export async function POST(request: Request, { params }: Params) {
   const file = form.get('file')
   if (!(file instanceof File) || file.size > MAX_IMPORT_BYTES)
     return Response.json(
-      { error: 'Invalid or oversized file' },
+      { error: 'invalid-or-oversized-file' },
       { status: 400 },
     )
   const text = await file.text()
@@ -165,16 +165,13 @@ export async function POST(request: Request, { params }: Params) {
       }
     } else raw = JSON.parse(text)
   } catch {
-    return Response.json(
-      { error: 'The file could not be parsed' },
-      { status: 400 },
-    )
+    return Response.json({ error: 'file-parse-failed' }, { status: 400 })
   }
   const result = backupSchema.safeParse(raw)
   if (!result.success)
     return Response.json(
       {
-        error: 'The file does not match backup version 1 or 2',
+        error: 'invalid-backup-version',
         issues: result.error.issues.slice(0, 10),
       },
       { status: 400 },

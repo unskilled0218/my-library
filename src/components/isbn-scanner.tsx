@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useLanguage } from '@/components/locale-provider'
+import { searchMessages } from '@/lib/i18n/search'
 
 export function IsbnScanner({
   onDetected,
@@ -12,6 +14,7 @@ export function IsbnScanner({
   const video = useRef<HTMLVideoElement>(null)
   const controls = useRef<{ stop: () => void } | null>(null)
   const [error, setError] = useState('')
+  const messages = searchMessages[useLanguage()]
 
   useEffect(() => {
     let disposed = false
@@ -35,8 +38,7 @@ export function IsbnScanner({
         if (disposed) scannerControls.stop()
         else controls.current = scannerControls
       } catch {
-        if (!disposed)
-          setError('Camera scanning is unavailable. Enter the ISBN instead.')
+        if (!disposed) setError(messages.cameraUnavailable)
       }
     }
 
@@ -46,7 +48,7 @@ export function IsbnScanner({
       controls.current?.stop()
       controls.current = null
     }
-  }, [onDetected])
+  }, [messages.cameraUnavailable, onDetected])
 
   function close() {
     controls.current?.stop()
@@ -63,7 +65,7 @@ export function IsbnScanner({
         playsInline
       />
       <p className="text-sm text-ink/60" role="status">
-        Point the rear camera at an ISBN barcode.
+        {messages.cameraInstruction}
       </p>
       {error && (
         <p className="text-sm text-rust" role="alert">
@@ -76,7 +78,7 @@ export function IsbnScanner({
         autoFocus
         onClick={close}
       >
-        Close camera
+        {messages.closeCamera}
       </button>
     </div>
   )

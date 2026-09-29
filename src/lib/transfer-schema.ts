@@ -68,21 +68,34 @@ export const backupSchema = z.discriminatedUnion('version', [
   }),
 ])
 
+const accountBackupBase = {
+  shelfTags: z.array(z.string().max(80)).max(1_000).default([]),
+  libraries: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(100),
+        description: z.string().max(500),
+        books: z.array(bookSchema).max(5_000),
+      }),
+    )
+    .max(100),
+}
+
 export const accountBackupSchema = z
-  .object({
-    version: z.literal(1),
-    settings: settingsSchema.optional(),
-    shelfTags: z.array(z.string().max(80)).max(1_000).default([]),
-    libraries: z
-      .array(
-        z.object({
-          name: z.string().min(1).max(100),
-          description: z.string().max(500),
-          books: z.array(bookSchema).max(5_000),
-        }),
-      )
-      .max(100),
-  })
+  .discriminatedUnion('version', [
+    z.object({
+      version: z.literal(1),
+      settings: settingsSchema.optional(),
+      ...accountBackupBase,
+    }),
+    z.object({
+      version: z.literal(2),
+      settings: settingsSchema
+        .extend({ language: z.enum(['KO', 'EN']) })
+        .optional(),
+      ...accountBackupBase,
+    }),
+  ])
   .superRefine((backup, context) => {
     const books = backup.libraries.reduce(
       (total, library) => total + library.books.length,

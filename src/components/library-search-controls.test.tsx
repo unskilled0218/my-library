@@ -4,6 +4,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { LibrarySearchControls } from '@/components/library-search-controls'
+import { LocaleProvider } from '@/components/locale-provider'
 
 const props = {
   query: {
@@ -21,8 +22,15 @@ const props = {
 afterEach(cleanup)
 
 describe('LibrarySearchControls', () => {
+  const renderControls = (language: 'KO' | 'EN' = 'KO') =>
+    render(
+      <LocaleProvider language={language}>
+        <LibrarySearchControls {...props} />
+      </LocaleProvider>,
+    )
+
   it('reveals populated filters and allows them to be hidden', () => {
-    render(<LibrarySearchControls {...props} />)
+    renderControls('EN')
 
     expect(screen.getByLabelText('Reading state')).not.toBeVisible()
     expect(document.querySelector('#library-filter-panel')).toHaveClass(
@@ -56,21 +64,32 @@ describe('LibrarySearchControls', () => {
   })
 
   it('resets disclosure state when remounted', () => {
-    const view = render(<LibrarySearchControls {...props} />)
+    const view = renderControls('EN')
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
     expect(screen.getByLabelText('Reading state')).toBeInTheDocument()
 
     view.unmount()
-    render(<LibrarySearchControls {...props} />)
+    renderControls('EN')
 
     expect(screen.getByLabelText('Reading state')).not.toBeVisible()
   })
 
   it('keeps active filters in the form while the panel is hidden', () => {
-    const { container } = render(<LibrarySearchControls {...props} />)
+    const { container } = renderControls()
     const form = container.querySelector('form')
 
     expect(new FormData(form!).get('reading')).toBe('READING')
     expect(new FormData(form!).get('genre')).toBe('genre-1')
+  })
+
+  it('uses Korean by default without changing option values', () => {
+    renderControls()
+
+    expect(screen.getByRole('button', { name: '필터' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '필터' }))
+    expect(screen.getByLabelText('독서 상태')).toHaveValue('READING')
+    expect(screen.getByRole('option', { name: '읽는 중' })).toHaveValue(
+      'READING',
+    )
   })
 })

@@ -2,6 +2,9 @@ import Link from 'next/link'
 import { requireLibraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { adminMessages } from '@/lib/i18n/admin'
+import { commonMessages, enumMessages } from '@/lib/i18n/common'
+import { getLanguage } from '@/lib/i18n/server'
 
 function tally(values: string[]) {
   return [
@@ -20,22 +23,34 @@ export default async function StatsPage({
   const user = await requireUser()
   const { id } = await params
   await requireLibraryAccess(user, id, 'READ')
-  const books = await db.book.findMany({
-    where: { libraryId: id },
-    include: {
-      genres: { include: { genre: true } },
-      locationTag: true,
-    },
-  })
+  const [language, books] = await Promise.all([
+    getLanguage(),
+    db.book.findMany({
+      where: { libraryId: id },
+      include: {
+        genres: { include: { genre: true } },
+        locationTag: true,
+      },
+    }),
+  ])
+  const messages = adminMessages[language]
+  const common = commonMessages[language]
+  const enumLabel = (value: string) => {
+    const key = enumMessages[value as keyof typeof enumMessages]
+    return key ? common[key] : value
+  }
   const stats = [
-    ['Total books', books.length],
-    ['Finished', books.filter((book) => book.readingState === 'DONE').length],
+    [messages.totalBooks, books.length],
     [
-      'Currently reading',
+      messages.finished,
+      books.filter((book) => book.readingState === 'DONE').length,
+    ],
+    [
+      messages.currentlyReading,
       books.filter((book) => book.readingState === 'READING').length,
     ],
     [
-      'Average rating',
+      messages.averageRating,
       books.filter((book) => book.rating).length
         ? (
             books.reduce((sum, book) => sum + (book.rating ?? 0), 0) /
@@ -46,19 +61,20 @@ export default async function StatsPage({
   ]
   const groups = [
     [
-      'Reading state',
-      tally(books.map((book) => book.readingState.replace('_', ' '))),
+      messages.readingState,
+      tally(books.map((book) => book.readingState)),
+      true,
     ],
-    ['Format', tally(books.map((book) => book.format))],
+    [messages.format, tally(books.map((book) => book.format)), true],
     [
-      'Genre',
+      messages.genre,
       tally(
         books.flatMap((book) => book.genres.map(({ genre }) => genre.name)),
       ),
     ],
     [
-      'Location',
-      tally(books.map((book) => book.locationTag?.name ?? 'Unassigned')),
+      messages.location,
+      tally(books.map((book) => book.locationTag?.name ?? '')),
     ],
   ] as const
   return (
@@ -68,16 +84,16 @@ export default async function StatsPage({
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Collection health</p>
+          <p className="eyebrow">{messages.collectionHealth}</p>
           <h1 className="mt-2 font-serif text-5xl font-black">
-            Library statistics
+            {messages.libraryStatistics}
           </h1>
         </div>
         <Link
           className="button button-secondary"
           href={`/libraries/${id}/settings`}
         >
-          Back to settings
+          {messages.backToSettings}
         </Link>
       </div>
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -90,14 +106,18 @@ export default async function StatsPage({
       </div>
       {books.length ? (
         <div className="mt-6 grid gap-6 md:grid-cols-2">
-          {groups.map(([title, rows]) => (
+          {groups.map(([title, rows, usesEnumLabels]) => (
             <section className="panel" key={title}>
               <h2 className="font-serif text-2xl font-bold">{title}</h2>
               <div className="mt-4 space-y-3">
                 {rows.slice(0, 8).map(([label, count]) => (
                   <div key={label}>
                     <div className="flex justify-between text-sm">
-                      <span>{label}</span>
+                      <span>
+                        {usesEnumLabels
+                          ? enumLabel(label)
+                          : label || messages.unassigned}
+                      </span>
                       <span>{count}</span>
                     </div>
                     <div className="mt-1 h-2 rounded-full bg-ink/10">
@@ -115,9 +135,7 @@ export default async function StatsPage({
           ))}
         </div>
       ) : (
-        <div className="panel mt-8 text-center">
-          Add books to see collection statistics.
-        </div>
+        <div className="panel mt-8 text-center">{messages.emptyStatistics}</div>
       )}
     </div>
   )

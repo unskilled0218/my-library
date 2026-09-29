@@ -4,6 +4,9 @@ import type { ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/components/locale-provider'
+import { commonMessages } from '@/lib/i18n/common'
+import { searchMessages } from '@/lib/i18n/search'
 
 export function KyoboReviewModal({
   children,
@@ -14,6 +17,9 @@ export function KyoboReviewModal({
 }) {
   const closeLink = useRef<HTMLAnchorElement>(null)
   const router = useRouter()
+  const language = useLanguage()
+  const messages = searchMessages[language]
+  const common = commonMessages[language]
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -48,7 +54,7 @@ export function KyoboReviewModal({
             id="kyobo-review-dialog-title"
             className="font-serif text-2xl font-bold"
           >
-            Kyobo book details
+            {messages.kyoboDetails}
           </h2>
           <Link
             ref={closeLink}
@@ -56,7 +62,7 @@ export function KyoboReviewModal({
             href={closeHref}
             scroll={false}
           >
-            Close
+            {common.close}
           </Link>
         </div>
         <div className="mt-5">{children}</div>

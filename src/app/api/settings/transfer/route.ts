@@ -13,6 +13,7 @@ import { db } from '@/lib/db'
 import { getEnv } from '@/lib/env'
 import { upsertGenrePaths } from '@/lib/genres'
 import { assertRateLimit } from '@/lib/rate-limit'
+import { setLanguageCookie } from '@/lib/i18n/cookie'
 import {
   accountBackupSchema,
   type AccountImportLibrary,
@@ -100,10 +101,11 @@ export async function GET() {
   )
 
   const backup = {
-    version: 1,
+    version: 2,
     settings: settings
       ? {
           defaultView: settings.defaultView,
+          language: settings.language,
           showCover: settings.showCover,
           showTitle: settings.showTitle,
           showAuthors: settings.showAuthors,
@@ -117,16 +119,10 @@ export async function GET() {
   } as const
   const validated = accountBackupSchema.safeParse(backup)
   if (!validated.success)
-    return Response.json(
-      { error: 'The account exceeds the supported transfer limits' },
-      { status: 413 },
-    )
+    return Response.json({ error: 'account-transfer-limit' }, { status: 413 })
   const payload = JSON.stringify(validated.data)
   if (Buffer.byteLength(payload) > MAX_IMPORT_BYTES)
-    return Response.json(
-      { error: 'The account backup exceeds the 50 MB transfer limit' },
-      { status: 413 },
-    )
+    return Response.json({ error: 'account-size-limit' }, { status: 413 })
   return new Response(payload, {
     headers: {
       'Content-Type': 'application/json',
@@ -141,17 +137,11 @@ export async function POST(request: Request) {
   try {
     assertRateLimit(`account-import:${user.id}`, 10, 60 * 60_000)
   } catch {
-    return Response.json(
-      { error: 'Too many import attempts. Try again later.' },
-      { status: 429 },
-    )
+    return Response.json({ error: 'import-rate-limited' }, { status: 429 })
   }
   const contentLength = Number(request.headers.get('content-length'))
   if (contentLength && contentLength > MAX_IMPORT_BYTES + 1024 * 1024)
-    return Response.json(
-      { error: 'The account backup exceeds the 50 MB transfer limit' },
-      { status: 413 },
-    )
+    return Response.json({ error: 'account-size-limit' }, { status: 413 })
   const form = await request.formData()
   const file = form.get('file')
   if (
@@ -159,25 +149,19 @@ export async function POST(request: Request) {
     file.size > MAX_IMPORT_BYTES ||
     (!file.type.includes('json') && !file.name.endsWith('.json'))
   )
-    return Response.json(
-      { error: 'Select a valid account JSON backup under 50 MB' },
-      { status: 400 },
-    )
+    return Response.json({ error: 'invalid-account-file' }, { status: 400 })
 
   let raw: unknown
   try {
     raw = JSON.parse(await file.text())
   } catch {
-    return Response.json(
-      { error: 'The account backup could not be parsed' },
-      { status: 400 },
-    )
+    return Response.json({ error: 'account-parse-failed' }, { status: 400 })
   }
   const result = accountBackupSchema.safeParse(raw)
   if (!result.success)
     return Response.json(
       {
-        error: 'The file does not match account backup version 1',
+        error: 'invalid-account-backup-version',
         issues: result.error.issues.slice(0, 10),
       },
       { status: 400 },
@@ -306,6 +290,8 @@ export async function POST(request: Request) {
   }
   revalidatePath('/settings')
   revalidatePath('/libraries', 'layout')
+  if (result.data.version === 2 && result.data.settings?.language)
+    await setLanguageCookie(result.data.settings.language)
   return Response.json({
     imported: bookCount,
     skipped: 0,

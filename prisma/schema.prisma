@@ -33,6 +33,11 @@ enum LibraryView {
   GRID
 }
 
+enum Language {
+  KO
+  EN
+}
+
 enum ActorType {
   USER
   ADMIN
@@ -125,6 +130,7 @@ model LibraryMember {
 
 model UserDisplaySettings {
   id           String      @id @default(cuid())
+  language     Language    @default(KO)
   defaultView  LibraryView @default(GRID)
   showCover    Boolean     @default(true)
   showTitle    Boolean     @default(true)

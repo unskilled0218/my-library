@@ -1,20 +1,21 @@
 import Link from 'next/link'
+import { getLanguage } from '@/lib/i18n/server'
+import { shellMessages } from '@/lib/i18n/shell'
 
-export default function NotFound() {
+export default async function NotFound() {
+  const messages = shellMessages[await getLanguage()]
   return (
     <div
       id="not-found-page"
       className="mx-auto max-w-xl px-5 py-28 text-center"
     >
-      <p className="eyebrow">Not found</p>
+      <p className="eyebrow">{messages.notFoundEyebrow}</p>
       <h1 className="mt-3 font-serif text-5xl font-black">
-        That shelf is out of reach.
+        {messages.notFoundTitle}
       </h1>
-      <p className="mt-5 text-ink/60">
-        The item does not exist or you do not have access to it.
-      </p>
+      <p className="mt-5 text-ink/60">{messages.notFoundBody}</p>
       <Link className="button mt-8" href="/libraries">
-        Return to libraries
+        {messages.returnLibraries}
       </Link>
     </div>
   )

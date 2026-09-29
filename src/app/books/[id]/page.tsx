@@ -3,6 +3,9 @@ import { deleteBookAction, updateBookAction } from '@/app/actions'
 import { libraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { booksMessages } from '@/lib/i18n/books'
+import { commonMessages } from '@/lib/i18n/common'
+import { getLanguage } from '@/lib/i18n/server'
 
 const dateInput = (date: Date | null) => date?.toISOString().slice(0, 10) ?? ''
 
@@ -25,12 +28,17 @@ export default async function BookPage({
   const access = await libraryAccess(user.id, book.libraryId)
   if (!access) notFound()
   const canWrite = access === 'OWNER' || access === 'EDITOR'
-  const locations = canWrite
-    ? await db.locationTag.findMany({
-        where: { userId: book.library.ownerId },
-        orderBy: { name: 'asc' },
-      })
-    : []
+  const [locations, language] = await Promise.all([
+    canWrite
+      ? db.locationTag.findMany({
+          where: { userId: book.library.ownerId },
+          orderBy: { name: 'asc' },
+        })
+      : [],
+    getLanguage(),
+  ])
+  const messages = booksMessages[language]
+  const common = commonMessages[language]
   return (
     <div
       id={`book-page-${id}`}
@@ -42,10 +50,10 @@ export default async function BookPage({
             <img
               className="w-full rounded-3xl bg-white p-5 shadow-card"
               src={`/api/covers/${book.coverKey}`}
-              alt={`Cover of ${book.title}`}
+              alt={messages.coverAlt.replace('{title}', book.title)}
             />
           ) : (
-            <div className="panel aspect-[3/4]">No cover</div>
+            <div className="panel aspect-[3/4]">{common.noCover}</div>
           )}
           <a
             className="mt-4 block break-all text-sm font-semibold text-moss underline"
@@ -53,7 +61,7 @@ export default async function BookPage({
             rel="noreferrer"
             target="_blank"
           >
-            View source on Kyobo
+            {messages.viewSource}
           </a>
         </div>
         <div>
@@ -81,11 +89,11 @@ export default async function BookPage({
             >
               <input type="hidden" name="bookId" value={id} />
               <label>
-                Title
+                {messages.title}
                 <input name="title" defaultValue={book.title} required />
               </label>
               <label>
-                Authors
+                {messages.authors}
                 <input
                   name="authors"
                   defaultValue={book.authors.join(', ')}
@@ -93,37 +101,37 @@ export default async function BookPage({
                 />
               </label>
               <label>
-                Ownership
+                {messages.ownership}
                 <select
                   name="ownershipState"
                   defaultValue={book.ownershipState}
                 >
-                  <option value="HAVE">Have</option>
-                  <option value="DONT_HAVE">Do not have</option>
+                  <option value="HAVE">{common.have}</option>
+                  <option value="DONT_HAVE">{common.dontHave}</option>
                 </select>
               </label>
               <label>
-                Format
+                {messages.format}
                 <select name="format" defaultValue={book.format}>
-                  <option value="PHYSICAL">Physical</option>
-                  <option value="EBOOK">Ebook</option>
+                  <option value="PHYSICAL">{common.physical}</option>
+                  <option value="EBOOK">{common.ebook}</option>
                 </select>
               </label>
               <label>
-                Reading state
+                {messages.readingState}
                 <select name="readingState" defaultValue={book.readingState}>
-                  <option value="NOT_STARTED">Not started</option>
-                  <option value="READING">Reading</option>
-                  <option value="DONE">Done</option>
+                  <option value="NOT_STARTED">{common.notStarted}</option>
+                  <option value="READING">{common.reading}</option>
+                  <option value="DONE">{common.done}</option>
                 </select>
               </label>
               <label>
-                Location
+                {messages.location}
                 <select
                   name="locationTagId"
                   defaultValue={book.locationTagId ?? ''}
                 >
-                  <option value="">None</option>
+                  <option value="">{messages.none}</option>
                   {locations.map((location) => (
                     <option key={location.id} value={location.id}>
                       {location.name}
@@ -132,7 +140,7 @@ export default async function BookPage({
                 </select>
               </label>
               <label>
-                Started
+                {messages.started}
                 <input
                   type="date"
                   name="readingStartedAt"
@@ -140,7 +148,7 @@ export default async function BookPage({
                 />
               </label>
               <label>
-                Finished
+                {messages.finished}
                 <input
                   type="date"
                   name="readingFinishedAt"
@@ -148,19 +156,19 @@ export default async function BookPage({
                 />
               </label>
               <label>
-                Rating
+                {messages.rating}
                 <select name="rating" defaultValue={book.rating ?? ''}>
-                  <option value="">Not rated</option>
+                  <option value="">{messages.notRated}</option>
                   {[1, 2, 3, 4, 5].map((rating) => (
                     <option key={rating}>{rating}</option>
                   ))}
                 </select>
               </label>
               <label className="sm:col-span-2">
-                Personal comment
+                {messages.personalComment}
                 <textarea name="comment" rows={5} defaultValue={book.comment} />
               </label>
-              <button className="sm:col-span-2">Save book</button>
+              <button className="sm:col-span-2">{messages.saveBook}</button>
             </form>
           )}
         </div>
@@ -168,7 +176,7 @@ export default async function BookPage({
       {canWrite && (
         <form action={deleteBookAction} className="mt-8 text-right">
           <input type="hidden" name="bookId" value={id} />
-          <button className="bg-rust">Delete book</button>
+          <button className="bg-rust">{messages.deleteBook}</button>
         </form>
       )}
     </div>

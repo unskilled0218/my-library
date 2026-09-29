@@ -1,0 +1,36 @@
+import { defineMessages } from '@/lib/i18n/config'
+
+export const shellMessages = defineMessages(
+  {
+    metadataDescription: '소장하고 읽는 책을 위한 나만의 서재입니다.',
+    settings: '설정',
+    signOut: '로그아웃',
+    signIn: '로그인',
+    register: '회원가입',
+    admin: '관리자',
+    errorEyebrow: '문제가 발생했습니다',
+    errorTitle: '책갈피가 빠졌습니다.',
+    errorBody: '변경 사항을 숨기지 않았습니다. 다시 시도해 주세요.',
+    tryAgain: '다시 시도',
+    notFoundEyebrow: '찾을 수 없음',
+    notFoundTitle: '그 책장은 손이 닿지 않습니다.',
+    notFoundBody: '항목이 없거나 접근 권한이 없습니다.',
+    returnLibraries: '서재로 돌아가기',
+  },
+  {
+    metadataDescription: 'A private home for the books you keep and read.',
+    settings: 'Settings',
+    signOut: 'Sign out',
+    signIn: 'Sign in',
+    register: 'Register',
+    admin: 'Admin',
+    errorEyebrow: 'Something went wrong',
+    errorTitle: 'The bookmark slipped.',
+    errorBody: 'No changes were intentionally hidden. Try the action again.',
+    tryAgain: 'Try again',
+    notFoundEyebrow: 'Not found',
+    notFoundTitle: 'That shelf is out of reach.',
+    notFoundBody: 'The item does not exist or you do not have access to it.',
+    returnLibraries: 'Return to libraries',
+  },
+)

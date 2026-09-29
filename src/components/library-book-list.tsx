@@ -6,6 +6,9 @@ import {
   type BookDisplay,
   type CardBook,
 } from '@/components/book-card'
+import { useLanguage } from '@/components/locale-provider'
+import { commonMessages } from '@/lib/i18n/common'
+import { librariesMessages } from '@/lib/i18n/libraries'
 
 type LibraryView = 'LIST' | 'GRID'
 
@@ -19,6 +22,9 @@ export function LibraryBookList({
   initialView: LibraryView
 }) {
   const [view, setView] = useState<LibraryView>(initialView)
+  const language = useLanguage()
+  const messages = librariesMessages[language]
+  const common = commonMessages[language]
 
   return (
     <>
@@ -30,7 +36,7 @@ export function LibraryBookList({
           aria-pressed={view === 'GRID'}
           onClick={() => setView('GRID')}
         >
-          Grid
+          {common.grid}
         </button>
         <button
           id="library-list-view"
@@ -39,7 +45,7 @@ export function LibraryBookList({
           aria-pressed={view === 'LIST'}
           onClick={() => setView('LIST')}
         >
-          List
+          {common.list}
         </button>
       </div>
       <div
@@ -52,10 +58,10 @@ export function LibraryBookList({
         ))}
         {books.length === 0 && (
           <div className="panel col-span-full text-center">
-            <p className="font-serif text-2xl font-bold">No books found</p>
-            <p className="mt-2 text-ink/60">
-              Add a book or change the current filters.
+            <p className="font-serif text-2xl font-bold">
+              {messages.noBooksFound}
             </p>
+            <p className="mt-2 text-ink/60">{messages.emptyBooksBody}</p>
           </div>
         )}
       </div>

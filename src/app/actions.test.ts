@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   createBook: vi.fn().mockResolvedValue({ id: 'book-2' }),
   createAudit: vi.fn().mockResolvedValue({}),
   revalidatePath: vi.fn(),
+  upsertSettings: vi.fn().mockResolvedValue({}),
+  setLanguageCookie: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
@@ -23,6 +25,7 @@ vi.mock('@/lib/access', () => ({
 vi.mock('@/lib/db', () => ({
   db: {
     book: { findFirst: mocks.findFirst },
+    userDisplaySettings: { upsert: mocks.upsertSettings },
     $transaction: (callback: (tx: unknown) => unknown) =>
       callback({
         book: { create: mocks.createBook },
@@ -38,8 +41,11 @@ vi.mock('@/lib/covers', () => ({
   downloadCover: mocks.downloadCover,
   removeCover: vi.fn(),
 }))
+vi.mock('@/lib/i18n/cookie', () => ({
+  setLanguageCookie: mocks.setLanguageCookie,
+}))
 
-import { addKyoboBookAction } from '@/app/actions'
+import { addKyoboBookAction, updateLanguageAction } from '@/app/actions'
 
 describe('addKyoboBookAction', () => {
   beforeEach(() => {
@@ -101,5 +107,39 @@ describe('addKyoboBookAction', () => {
     expect(mocks.redirect).toHaveBeenCalledWith(
       '/search?q=Dune&source=kyobo&libraryId=library-1&status=added',
     )
+  })
+})
+
+describe('updateLanguageAction', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('persists English, mirrors the cookie, and revalidates the shell', async () => {
+    const form = new FormData()
+    form.set('language', 'EN')
+
+    await expect(updateLanguageAction(form)).rejects.toThrow('REDIRECT:')
+
+    expect(mocks.upsertSettings).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+      create: { userId: 'user-1', language: 'EN' },
+      update: { language: 'EN' },
+    })
+    expect(mocks.setLanguageCookie).toHaveBeenCalledWith('EN')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/', 'layout')
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      '/settings?status=language-updated',
+    )
+  })
+
+  it('rejects unsupported language values without writing', async () => {
+    const form = new FormData()
+    form.set('language', 'FR')
+
+    await expect(updateLanguageAction(form)).rejects.toThrow('REDIRECT:')
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      '/settings?error=invalid-language',
+    )
+    expect(mocks.upsertSettings).not.toHaveBeenCalled()
   })
 })

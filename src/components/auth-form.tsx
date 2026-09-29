@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import type { AppLanguage } from '@/lib/i18n/config'
+import { authErrorKeys, authMessages } from '@/lib/i18n/auth'
 
 export function AuthForm({
   id,
@@ -8,6 +10,8 @@ export function AuthForm({
   error,
   success,
   token,
+  mode,
+  language,
 }: {
   id: string
   title: string
@@ -16,26 +20,35 @@ export function AuthForm({
   error?: string
   success?: string
   token?: string
+  mode: 'login' | 'register' | 'setup'
+  language: AppLanguage
 }) {
+  const messages = authMessages[language]
+  const errorMessage = error
+    ? messages[authErrorKeys[error as keyof typeof authErrorKeys]]
+    : undefined
+  const successMessage = success
+    ? messages[authErrorKeys[success as keyof typeof authErrorKeys]]
+    : undefined
   return (
     <div id={id} className="mx-auto max-w-md px-5 py-20">
       <div className="panel">
         <p className="eyebrow">My Library</p>
         <h1 className="mt-3 font-serif text-4xl font-bold">{title}</h1>
-        {error && (
+        {errorMessage && (
           <p
             className="mt-4 rounded-xl bg-rust/10 p-3 text-sm text-rust"
             role="alert"
           >
-            {error}
+            {errorMessage}
           </p>
         )}
-        {success && (
+        {successMessage && (
           <p
             className="mt-4 rounded-xl bg-moss/10 p-3 text-sm text-moss"
             role="status"
           >
-            {success}
+            {successMessage}
           </p>
         )}
         <form id={`${id}-form`} action={action} className="mt-8 space-y-4">
@@ -43,10 +56,11 @@ export function AuthForm({
             <input type="hidden" name="token" value={token} />
           )}
           <label className="block text-sm font-semibold">
-            Login ID
+            {messages.loginId}
             <input
               className="mt-1"
               name="loginId"
+              aria-label={messages.loginId}
               autoComplete="username"
               required
               minLength={3}
@@ -58,19 +72,18 @@ export function AuthForm({
               id="login-id-help"
               className="mt-1 block text-xs font-normal text-ink/55"
             >
-              3-40 characters: letters, numbers, dots, underscores, or hyphens.
+              {messages.loginHelp}
             </span>
           </label>
           <label className="block text-sm font-semibold">
-            Password
+            {messages.password}
             <input
               className="mt-1"
               type="password"
               name="password"
+              aria-label={messages.password}
               autoComplete={
-                title.includes('Register') || title.includes('administrator')
-                  ? 'new-password'
-                  : 'current-password'
+                mode === 'login' ? 'current-password' : 'new-password'
               }
               required
               minLength={12}
@@ -81,11 +94,11 @@ export function AuthForm({
               id="password-help"
               className="mt-1 block text-xs font-normal text-ink/55"
             >
-              At least 12 characters.
+              {messages.passwordHelp}
             </span>
           </label>
           <button className="w-full" type="submit">
-            Continue
+            {messages.continue}
           </button>
         </form>
         {alternate && (

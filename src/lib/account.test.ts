@@ -14,20 +14,20 @@ describe('passwordChangeError', () => {
   })
 
   it('enforces policy and confirmation', () => {
-    expect(passwordChangeError({ ...valid, newPassword: 'short' })).toMatch(
-      /between 12 and 128/,
+    expect(passwordChangeError({ ...valid, newPassword: 'short' })).toBe(
+      'password-length',
     )
     expect(
       passwordChangeError({ ...valid, confirmation: 'different-password' }),
-    ).toMatch(/does not match/)
+    ).toBe('password-mismatch')
   })
 
   it('requires the current password and a changed value', () => {
-    expect(passwordChangeError({ ...valid, currentMatches: false })).toMatch(
-      /incorrect/,
+    expect(passwordChangeError({ ...valid, currentMatches: false })).toBe(
+      'password-incorrect',
     )
-    expect(passwordChangeError({ ...valid, newMatchesCurrent: true })).toMatch(
-      /must be different/,
+    expect(passwordChangeError({ ...valid, newMatchesCurrent: true })).toBe(
+      'password-different',
     )
   })
 })

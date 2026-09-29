@@ -5,6 +5,9 @@ import { LibrarySearchControls } from '@/components/library-search-controls'
 import { libraryAccess, requireLibraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { commonMessages, enumMessages } from '@/lib/i18n/common'
+import { librariesMessages } from '@/lib/i18n/libraries'
+import { getLanguage } from '@/lib/i18n/server'
 
 export default async function LibraryPage({
   params,
@@ -36,10 +39,13 @@ export default async function LibraryPage({
     ...(query.location ? { location: query.location } : {}),
     ...(query.genre ? { genre: query.genre } : {}),
   }
-  const [genreOptions, viewerSettings] = await Promise.all([
+  const [genreOptions, viewerSettings, language] = await Promise.all([
     db.genre.findMany({ orderBy: { name: 'asc' } }),
     db.userDisplaySettings.findUnique({ where: { userId: user.id } }),
+    getLanguage(),
   ])
+  const messages = librariesMessages[language]
+  const common = commonMessages[language]
   const genreFilterIds = query.genre ? [query.genre] : []
   for (let index = 0; index < genreFilterIds.length; index += 1)
     genreFilterIds.push(
@@ -120,7 +126,9 @@ export default async function LibraryPage({
         className="flex flex-wrap items-start justify-between gap-5"
       >
         <div>
-          <p className="eyebrow">{access} access</p>
+          <p className="eyebrow">
+            {common[enumMessages[access]]} {messages.access}
+          </p>
           <h1 className="mt-2 font-serif text-5xl font-black">
             {library.name}
           </h1>
@@ -132,7 +140,7 @@ export default async function LibraryPage({
             className="button button-secondary"
             href={`/libraries/${id}/settings`}
           >
-            Settings
+            {common.settings}
           </Link>
         </div>
       </div>
@@ -147,13 +155,16 @@ export default async function LibraryPage({
         initialView={initialView}
       />
       {(page > 1 || library.books.length === 100) && (
-        <nav className="mt-8 flex justify-center gap-3" aria-label="Book pages">
+        <nav
+          className="mt-8 flex justify-center gap-3"
+          aria-label={messages.bookPages}
+        >
           {page > 1 && (
             <Link
               className="button button-secondary"
               href={`?${new URLSearchParams({ ...activeFilters, page: String(page - 1) })}`}
             >
-              Previous
+              {messages.previous}
             </Link>
           )}
           {library.books.length === 100 && (
@@ -161,7 +172,7 @@ export default async function LibraryPage({
               className="button button-secondary"
               href={`?${new URLSearchParams({ ...activeFilters, page: String(page + 1) })}`}
             >
-              Next
+              {messages.next}
             </Link>
           )}
         </nav>

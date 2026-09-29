@@ -53,7 +53,7 @@ describe('library backup schema', () => {
 })
 
 describe('account backup schema', () => {
-  it('accepts settings, shelf tags, and multiple complete libraries', () => {
+  it('accepts legacy version 1 account backups', () => {
     const result = accountBackupSchema.safeParse({
       version: 1,
       settings,
@@ -71,10 +71,31 @@ describe('account backup schema', () => {
     }
   })
 
-  it('rejects unknown account backup versions', () => {
+  it('round trips language in version 2 account backups', () => {
+    const result = accountBackupSchema.safeParse({
+      version: 2,
+      settings: { ...settings, language: 'EN' },
+      shelfTags: [],
+      libraries: [],
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success && result.data.version === 2)
+      expect(result.data.settings?.language).toBe('EN')
+  })
+
+  it('rejects invalid language and unknown account backup versions', () => {
     expect(
       accountBackupSchema.safeParse({
         version: 2,
+        settings: { ...settings, language: 'FR' },
+        shelfTags: [],
+        libraries: [],
+      }).success,
+    ).toBe(false)
+    expect(
+      accountBackupSchema.safeParse({
+        version: 3,
         shelfTags: [],
         libraries: [],
       }).success,

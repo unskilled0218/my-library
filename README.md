@@ -2,6 +2,13 @@
 
 A responsive personal book-management service for private and shared libraries. It supports Kyobo search/import, hierarchical genres, local cover storage, reading history, backups, statistics, and a separate administrator realm.
 
+## Languages
+
+- Korean is the default interface language for new accounts, existing accounts after migration, and visitors without a saved preference.
+- Signed-in users can select Korean or English in General Settings. The account preference applies to owned and shared libraries and is mirrored to a non-sensitive cookie so logged-out pages retain the last selected language.
+- Routes do not include locale prefixes and the application does not infer English from the browser language.
+- Interface text, expected feedback, accessibility labels, enum labels, and dates are localized. User-entered library/book data and Kyobo-provided titles, authors, descriptions, and genres are never translated or rewritten.
+
 ## Run with Docker Compose
 
 1. Copy `.env.example` to `.env` and replace `SESSION_SECRET` with at least 32 random characters.
@@ -57,7 +64,7 @@ npm run kyobo:probe -- "너의 췌장을 먹고 싶어"
 - Shelf tags belong to a library owner and are shared by all libraries that account owns. Editors can assign the owner's tags to books but cannot manage the owner's global tag collection.
 - Library-specific settings retain their existing permissions: statistics are readable by library members, while sharing, ownership, transfer, and audit controls are owner-only.
 - Version 2 library backups preserve book shelf assignments by name but do not contain account-wide display settings. Version 1 backups remain importable; their legacy display block is ignored.
-- General Settings can export and import one versioned JSON backup containing every owned library plus account display preferences and shelf tags. Imports create new libraries without replacing existing collections; account backup files are limited to 50 MB, 100 libraries, and 5,000 books.
+- General Settings can export and import one versioned JSON backup containing every owned library plus account display preferences, language, and shelf tags. Account backup version 2 preserves language; version 1 remains importable without replacing the importing account's current language. Imports create new libraries without replacing existing collections; account backup files are limited to 50 MB, 100 libraries, and 5,000 books.
 
 ## Security boundaries
 

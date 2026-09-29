@@ -9,6 +9,9 @@ import {
 import { libraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { commonMessages, enumMessages } from '@/lib/i18n/common'
+import { librariesMessages } from '@/lib/i18n/libraries'
+import { getLanguage } from '@/lib/i18n/server'
 
 export default async function LibrarySettingsPage({
   params,
@@ -24,14 +27,18 @@ export default async function LibrarySettingsPage({
     select: { id: true, name: true, description: true },
   })
   if (!library) notFound()
-  const members =
+  const [members, language] = await Promise.all([
     access === 'OWNER'
-      ? await db.libraryMember.findMany({
+      ? db.libraryMember.findMany({
           where: { libraryId: id },
           include: { user: { select: { id: true, loginId: true } } },
           orderBy: { createdAt: 'asc' },
         })
-      : []
+      : [],
+    getLanguage(),
+  ])
+  const messages = librariesMessages[language]
+  const common = commonMessages[language]
 
   return (
     <div
@@ -41,33 +48,35 @@ export default async function LibrarySettingsPage({
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">{access} access</p>
+          <p className="eyebrow">
+            {common[enumMessages[access]]} {messages.access}
+          </p>
           <h1 className="mt-2 font-serif text-5xl font-black">
-            Library settings
+            {messages.librarySettings}
           </h1>
           <p className="mt-3 text-ink/60">{library.name}</p>
         </div>
         <Link className="button button-secondary" href={`/libraries/${id}`}>
-          Back to library
+          {messages.backToLibrary}
         </Link>
       </div>
       <nav
         id="library-settings-navigation"
         className="panel mt-8 divide-y divide-ink/10 overflow-hidden p-0"
-        aria-label="Library settings"
+        aria-label={messages.settingsNavigation}
       >
         <Link
           className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-ink/5"
           href={`/libraries/${id}/stats`}
         >
           <span>
-            <span className="eyebrow">Insights</span>
+            <span className="eyebrow">{messages.insights}</span>
             <span className="mt-1 block font-serif text-xl font-bold">
-              Statistics
+              {messages.statistics}
             </span>
           </span>
           <span className="text-sm font-semibold text-moss" aria-hidden="true">
-            View
+            {messages.view}
           </span>
         </Link>
         {access === 'OWNER' && (
@@ -77,16 +86,16 @@ export default async function LibrarySettingsPage({
               href={`/libraries/${id}/transfer`}
             >
               <span>
-                <span className="eyebrow">Portability</span>
+                <span className="eyebrow">{messages.portability}</span>
                 <span className="mt-1 block font-serif text-xl font-bold">
-                  Import / export
+                  {messages.importExport}
                 </span>
               </span>
               <span
                 className="text-sm font-semibold text-moss"
                 aria-hidden="true"
               >
-                Manage
+                {messages.manage}
               </span>
             </Link>
             <Link
@@ -94,16 +103,16 @@ export default async function LibrarySettingsPage({
               href={`/libraries/${id}/audit`}
             >
               <span>
-                <span className="eyebrow">History</span>
+                <span className="eyebrow">{messages.history}</span>
                 <span className="mt-1 block font-serif text-xl font-bold">
-                  Audit log
+                  {messages.auditLog}
                 </span>
               </span>
               <span
                 className="text-sm font-semibold text-moss"
                 aria-hidden="true"
               >
-                View
+                {messages.view}
               </span>
             </Link>
           </>
@@ -112,20 +121,22 @@ export default async function LibrarySettingsPage({
       {access === 'OWNER' && (
         <div id="library-owner-settings" className="mt-8 space-y-6">
           <section id="library-sharing-settings" className="panel">
-            <p className="eyebrow">Sharing</p>
-            <h2 className="mt-2 font-serif text-3xl font-bold">Members</h2>
+            <p className="eyebrow">{messages.sharing}</p>
+            <h2 className="mt-2 font-serif text-3xl font-bold">
+              {messages.members}
+            </h2>
             <form
               id="library-share-form"
               action={shareLibraryAction}
               className="mt-5 grid gap-2 sm:grid-cols-[1fr_120px_auto]"
             >
               <input type="hidden" name="libraryId" value={id} />
-              <input name="loginId" required placeholder="Login ID" />
-              <select name="role" aria-label="Member role">
-                <option value="VIEWER">Viewer</option>
-                <option value="EDITOR">Editor</option>
+              <input name="loginId" required placeholder={messages.loginId} />
+              <select name="role" aria-label={messages.memberRole}>
+                <option value="VIEWER">{common.viewer}</option>
+                <option value="EDITOR">{common.editor}</option>
               </select>
-              <button type="submit">Add</button>
+              <button type="submit">{messages.add}</button>
             </form>
             <div className="mt-4 space-y-2">
               {members.map((member) => (
@@ -134,7 +145,7 @@ export default async function LibrarySettingsPage({
                   className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-ink/5 p-3 text-sm"
                 >
                   <span>
-                    {member.user.loginId} · {member.role}
+                    {member.user.loginId} · {common[enumMessages[member.role]]}
                   </span>
                   <form action={removeMemberAction}>
                     <input type="hidden" name="libraryId" value={id} />
@@ -144,20 +155,20 @@ export default async function LibrarySettingsPage({
                       value={member.user.id}
                     />
                     <button className="button-secondary" type="submit">
-                      Remove
+                      {messages.remove}
                     </button>
                   </form>
                 </div>
               ))}
               {members.length === 0 && (
-                <p className="text-sm text-ink/60">No members yet.</p>
+                <p className="text-sm text-ink/60">{messages.noMembers}</p>
               )}
             </div>
           </section>
           <section id="library-ownership-settings" className="panel">
-            <p className="eyebrow">Ownership</p>
+            <p className="eyebrow">{messages.ownership}</p>
             <h2 className="mt-2 font-serif text-3xl font-bold">
-              Library details
+              {messages.libraryDetails}
             </h2>
             <form
               id="library-details-form"
@@ -166,7 +177,7 @@ export default async function LibrarySettingsPage({
             >
               <input type="hidden" name="libraryId" value={id} />
               <label className="block text-sm font-semibold">
-                Name
+                {messages.name}
                 <input
                   className="mt-1"
                   name="name"
@@ -175,7 +186,7 @@ export default async function LibrarySettingsPage({
                 />
               </label>
               <label className="block text-sm font-semibold">
-                Description
+                {messages.description}
                 <textarea
                   className="mt-1"
                   name="description"
@@ -183,7 +194,7 @@ export default async function LibrarySettingsPage({
                   rows={3}
                 />
               </label>
-              <button type="submit">Save library</button>
+              <button type="submit">{messages.saveLibrary}</button>
             </form>
             <form
               id="delete-library-form"
@@ -192,7 +203,7 @@ export default async function LibrarySettingsPage({
             >
               <input type="hidden" name="libraryId" value={id} />
               <button className="bg-rust" type="submit">
-                Delete library
+                {messages.deleteLibrary}
               </button>
             </form>
           </section>

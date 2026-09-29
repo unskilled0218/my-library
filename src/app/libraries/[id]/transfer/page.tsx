@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { requireLibraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { ImportPanel } from '@/components/import-panel'
+import { getLanguage } from '@/lib/i18n/server'
+import { transferMessages } from '@/lib/i18n/transfer'
 
 export default async function TransferPage({
   params,
@@ -11,6 +13,7 @@ export default async function TransferPage({
   const user = await requireUser()
   const { id } = await params
   await requireLibraryAccess(user, id, 'OWNER')
+  const messages = transferMessages[await getLanguage()]
   return (
     <div
       id={`library-transfer-page-${id}`}
@@ -18,46 +21,42 @@ export default async function TransferPage({
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Portability</p>
+          <p className="eyebrow">{messages.eyebrow}</p>
           <h1 className="mt-2 font-serif text-5xl font-black">
-            Import and export
+            {messages.title}
           </h1>
         </div>
         <Link
           className="button button-secondary"
           href={`/libraries/${id}/settings`}
         >
-          Back to settings
+          {messages.backToSettings}
         </Link>
       </div>
       <div className="mt-8 grid gap-6 md:grid-cols-2">
         <section className="panel">
-          <h2 className="font-serif text-3xl font-bold">Export</h2>
+          <h2 className="font-serif text-3xl font-bold">{messages.export}</h2>
           <p className="mt-3 text-sm leading-6 text-ink/60">
-            JSON preserves library details, genre paths, reading data, shelf
-            assignments, and cover images. Account-wide display settings are
-            managed separately. CSV is designed for spreadsheet editing.
+            {messages.exportBody}
           </p>
           <div className="mt-5 flex gap-2">
             <a
               className="button"
               href={`/api/libraries/${id}/transfer?format=json`}
             >
-              Download JSON
+              {messages.downloadJson}
             </a>
             <a
               className="button button-secondary"
               href={`/api/libraries/${id}/transfer?format=csv`}
             >
-              Download CSV
+              {messages.downloadCsv}
             </a>
           </div>
         </section>
         <section className="panel">
-          <h2 className="font-serif text-3xl font-bold">Import</h2>
-          <p className="mt-3 mb-5 text-sm text-ink/60">
-            Preview validation and duplicates before changing the library.
-          </p>
+          <h2 className="font-serif text-3xl font-bold">{messages.import}</h2>
+          <p className="mt-3 mb-5 text-sm text-ink/60">{messages.importBody}</p>
           <ImportPanel libraryId={id} />
         </section>
       </div>

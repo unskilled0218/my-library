@@ -3,6 +3,7 @@
 import { randomBytes } from 'node:crypto'
 import { compare, hash } from 'bcryptjs'
 import {
+  Language,
   ActorType,
   BookFormat,
   LibraryView,
@@ -28,6 +29,7 @@ import { downloadCover, removeCover } from '@/lib/covers'
 import { db } from '@/lib/db'
 import { upsertGenrePaths } from '@/lib/genres'
 import { getKyoboBook } from '@/lib/kyobo'
+import { setLanguageCookie } from '@/lib/i18n/cookie'
 import { assertRateLimit } from '@/lib/rate-limit'
 import {
   kyoboBookUrlSchema,
@@ -41,17 +43,15 @@ const value = (form: FormData, key: string) =>
 export async function registerAction(form: FormData) {
   const loginId = value(form, 'loginId')
   if (!loginIdSchema.safeParse(loginId).success)
-    redirect(
-      '/register?error=Login+ID+must+use+3-40+letters%2C+numbers%2C+dots%2C+underscores%2C+or+hyphens',
-    )
+    redirect('/register?error=invalid-login-id')
   if (!passwordSchema.safeParse(value(form, 'password')).success)
-    redirect('/register?error=Password+must+be+between+12+and+128+characters')
+    redirect('/register?error=invalid-password')
   assertRateLimit(`register:${loginId}`)
   try {
     await createUser(loginId, value(form, 'password'))
     await signInUser(loginId, value(form, 'password'))
   } catch {
-    redirect('/register?error=Registration+failed')
+    redirect('/register?error=registration-failed')
   }
   redirect('/libraries')
 }
@@ -62,7 +62,7 @@ export async function userLoginAction(form: FormData) {
   try {
     await signInUser(loginId, value(form, 'password'))
   } catch {
-    redirect('/login?error=Invalid+credentials')
+    redirect('/login?error=invalid-credentials')
   }
   redirect('/libraries')
 }
@@ -73,7 +73,7 @@ export async function adminLoginAction(form: FormData) {
   try {
     await signInAdmin(loginId, value(form, 'password'))
   } catch {
-    redirect('/admin/login?error=Invalid+credentials')
+    redirect('/admin/login?error=invalid-credentials')
   }
   redirect('/admin')
 }
@@ -116,7 +116,7 @@ export async function changePasswordAction(form: FormData) {
     db.userSession.deleteMany({ where: { userId: user.id } }),
   ])
   await signOut('user')
-  redirect('/login?success=Password+changed.+Sign+in+again')
+  redirect('/login?success=password-changed')
 }
 
 export async function setupAdminAction(form: FormData) {
@@ -133,7 +133,7 @@ export async function setupAdminAction(form: FormData) {
     setup.expiresAt <= new Date() ||
     setup.tokenHash !== tokenHash(rawToken)
   ) {
-    redirect('/admin/setup?error=Setup+token+is+invalid+or+expired')
+    redirect('/admin/setup?error=invalid-setup-token')
   }
   await db.$transaction(async (tx) => {
     if ((await tx.admin.count()) > 0)
@@ -346,6 +346,21 @@ export async function updateDisplayAction(form: FormData) {
   })
   revalidatePath('/settings')
   revalidatePath('/libraries', 'layout')
+}
+
+export async function updateLanguageAction(form: FormData) {
+  const user = await requireUser()
+  const language = value(form, 'language')
+  if (language !== Language.KO && language !== Language.EN)
+    redirect('/settings?error=invalid-language')
+  await db.userDisplaySettings.upsert({
+    where: { userId: user.id },
+    create: { userId: user.id, language },
+    update: { language },
+  })
+  await setLanguageCookie(language)
+  revalidatePath('/', 'layout')
+  redirect('/settings?status=language-updated')
 }
 
 export async function addKyoboBookAction(form: FormData) {

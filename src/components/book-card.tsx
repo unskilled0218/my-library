@@ -1,5 +1,9 @@
+'use client'
+
 import Link from 'next/link'
 import type { BookFormat, OwnershipState, ReadingState } from '@prisma/client'
+import { useLanguage } from '@/components/locale-provider'
+import { commonMessages, enumMessages } from '@/lib/i18n/common'
 
 export type CardBook = {
   id: string
@@ -32,6 +36,9 @@ export function BookCard({
   view: 'LIST' | 'GRID'
   display: BookDisplay
 }) {
+  const language = useLanguage()
+  const common = commonMessages[language]
+
   return (
     <Link
       id={`book-card-${book.id}`}
@@ -50,7 +57,7 @@ export function BookCard({
             />
           ) : (
             <div className="flex h-full items-center justify-center p-4 text-center font-serif text-lg font-bold text-moss/50">
-              No cover
+              {common.noCover}
             </div>
           )}
         </div>
@@ -58,8 +65,8 @@ export function BookCard({
       <div className="p-5">
         {display.showReading && (
           <div className="flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wider text-rust">
-            <span>{book.readingState.replace('_', ' ')}</span>
-            <span>{book.format}</span>
+            <span>{common[enumMessages[book.readingState]]}</span>
+            <span>{common[enumMessages[book.format]]}</span>
           </div>
         )}
         {display.showTitle && (
