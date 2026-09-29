@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { GridIcon, ListIcon } from '@/components/icons'
 import {
   BookCard,
   type BookDisplay,
@@ -31,21 +32,23 @@ export function LibraryBookList({
       <div id="library-view-controls" className="mt-5 flex justify-end gap-2">
         <button
           id="library-grid-view"
-          className={view === 'GRID' ? '' : 'button-secondary'}
+          className={`h-10 w-10 p-0 ${view === 'GRID' ? '' : 'button-secondary'}`}
           type="button"
+          aria-label={common.grid}
           aria-pressed={view === 'GRID'}
           onClick={() => setView('GRID')}
         >
-          {common.grid}
+          <GridIcon />
         </button>
         <button
           id="library-list-view"
-          className={view === 'LIST' ? '' : 'button-secondary'}
+          className={`h-10 w-10 p-0 ${view === 'LIST' ? '' : 'button-secondary'}`}
           type="button"
+          aria-label={common.list}
           aria-pressed={view === 'LIST'}
           onClick={() => setView('LIST')}
         >
-          {common.list}
+          <ListIcon />
         </button>
       </div>
       <div

@@ -36,10 +36,10 @@ describe('LibrarySearchControls', () => {
     expect(document.querySelector('#library-filter-panel')).toHaveClass(
       'hidden',
     )
-    expect(screen.getByRole('button', { name: 'Filter' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    )
+    const filter = screen.getByRole('button', { name: 'Filter' })
+    expect(filter).toHaveAttribute('aria-expanded', 'false')
+    expect(filter).not.toHaveTextContent('Filter')
+    expect(filter.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     expect(screen.getByDisplayValue('history')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Filter' }))
@@ -58,7 +58,13 @@ describe('LibrarySearchControls', () => {
       'true',
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Hide filters' }))
+    const hideFilters = screen.getByRole('button', { name: 'Hide filters' })
+    expect(hideFilters).not.toHaveTextContent('Hide filters')
+    expect(hideFilters.querySelector('svg')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
+    fireEvent.click(hideFilters)
 
     expect(screen.getByLabelText('Reading state')).not.toBeVisible()
   })

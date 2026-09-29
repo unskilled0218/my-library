@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { LibraryBookList } from '@/components/library-book-list'
 import { LibrarySearchControls } from '@/components/library-search-controls'
+import { SettingsIcon } from '@/components/icons'
 import { libraryAccess, requireLibraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -137,10 +138,11 @@ export default async function LibraryPage({
         <div className="flex flex-wrap gap-2">
           <Link
             id="library-settings-link"
-            className="button button-secondary"
+            className="button button-secondary h-10 w-10 p-0"
             href={`/libraries/${id}/settings`}
+            aria-label={common.settings}
           >
-            {common.settings}
+            <SettingsIcon />
           </Link>
         </div>
       </div>

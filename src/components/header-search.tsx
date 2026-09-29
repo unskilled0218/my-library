@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { CameraIcon, SearchIcon } from '@/components/icons'
 import { IsbnScanner } from '@/components/isbn-scanner'
 import { useLanguage } from '@/components/locale-provider'
 import type { SearchSource } from '@/lib/global-search'
@@ -79,17 +80,22 @@ export function HeaderSearch({ authenticated }: { authenticated: boolean }) {
             </span>
           </>
         )}
-        <button id="header-search-submit" className="shrink-0" type="submit">
-          {common.search}
+        <button
+          id="header-search-submit"
+          className="h-10 w-10 shrink-0 p-0"
+          type="submit"
+          aria-label={common.search}
+        >
+          <SearchIcon />
         </button>
         <button
           id="header-isbn-camera"
-          className="button-secondary shrink-0 sm:hidden"
+          className="button-secondary h-10 w-10 shrink-0 p-0 sm:hidden"
           type="button"
           aria-label={messages.scanIsbn}
           onClick={() => setScannerOpen(true)}
         >
-          {messages.scan}
+          <CameraIcon />
         </button>
       </form>
       {scannerOpen && (

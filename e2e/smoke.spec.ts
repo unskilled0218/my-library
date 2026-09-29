@@ -15,6 +15,19 @@ test('landing page is usable', async ({ page }) => {
     '교보문고',
   )
   await expect(headerSearch.locator('option[value="library"]')).toHaveCount(0)
+  await expect(
+    headerSearch.getByRole('button', { name: '검색' }).locator('svg'),
+  ).toHaveAttribute('aria-hidden', 'true')
+  await expect(
+    headerSearch.getByRole('button', { name: 'ISBN 스캔' }).locator('svg'),
+  ).toHaveAttribute('aria-hidden', 'true')
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
 })
 
 test('a user can register and receives a default library', async ({ page }) => {
@@ -31,7 +44,12 @@ test('a user can register and receives a default library', async ({ page }) => {
     .getByRole('link', { name: '설정' })
     .click()
   await page.getByLabel('언어').selectOption('EN')
-  await page.getByRole('button', { name: '언어 저장' }).click()
+  const saveLanguage = page.getByRole('button', { name: '언어 저장' })
+  await expect(saveLanguage.locator('svg')).toHaveAttribute(
+    'aria-hidden',
+    'true',
+  )
+  await saveLanguage.click()
   await expect(page.getByText('Display language updated.')).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await page.getByRole('link', { name: 'MY / LIBRARY' }).click()
@@ -62,6 +80,9 @@ test('a user can register and receives a default library', async ({ page }) => {
   await expect(searchRow.locator('#library-search-input')).toBeVisible()
   await expect(searchRow.locator('#library-search-button')).toBeVisible()
   await expect(searchRow.locator('#library-filter-toggle')).toBeVisible()
+  await expect(
+    searchRow.getByRole('button', { name: 'Filter' }).locator('svg'),
+  ).toHaveAttribute('aria-hidden', 'true')
   expect(
     await page.evaluate(() => {
       const search = document.querySelector('#library-search-button')
@@ -88,6 +109,9 @@ test('a user can register and receives a default library', async ({ page }) => {
 
   await page.locator('#library-filter-toggle').click()
   await expect(page.locator('#library-filter-panel')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Hide filters' }).locator('svg'),
+  ).toHaveAttribute('aria-hidden', 'true')
   await page.locator('#library-hide-filters').click()
   await expect(page.locator('#library-filter-panel')).toBeHidden()
   await page.locator('#library-filter-toggle').click()
@@ -99,7 +123,12 @@ test('a user can register and receives a default library', async ({ page }) => {
     url: window.location.href,
     scrollY: window.scrollY,
   }))
-  await page.locator('#library-list-view').click()
+  await expect(
+    page.getByRole('button', { name: 'Grid' }).locator('svg'),
+  ).toHaveAttribute('aria-hidden', 'true')
+  const listView = page.getByRole('button', { name: 'List' })
+  await expect(listView.locator('svg')).toHaveAttribute('aria-hidden', 'true')
+  await listView.click()
   await expect(page.locator('#library-book-list')).toHaveAttribute(
     'data-view',
     'LIST',
@@ -114,6 +143,9 @@ test('a user can register and receives a default library', async ({ page }) => {
   await expect(
     siteNavigation.getByRole('link', { name: 'Settings' }),
   ).toBeVisible()
+  await expect(
+    siteNavigation.getByRole('link', { name: 'Settings' }).locator('svg'),
+  ).toHaveAttribute('aria-hidden', 'true')
   await expect(
     siteNavigation.getByRole('link', { name: 'Libraries' }),
   ).toHaveCount(0)
@@ -136,8 +168,19 @@ test('a user can register and receives a default library', async ({ page }) => {
   await page.locator('#add-shelf-tag-form input[name="name"]').fill('Study')
   await page.getByRole('button', { name: 'Add shelf tag' }).click()
   await expect(page.getByLabel('Rename Study')).toHaveValue('Study')
+  await expect(
+    page.getByRole('button', { name: 'Save Study' }).locator('svg'),
+  ).toHaveAttribute('aria-hidden', 'true')
+  await expect(
+    page.getByRole('button', { name: 'Delete Study' }).locator('svg'),
+  ).toHaveAttribute('aria-hidden', 'true')
   await page.getByLabel('Default layout').selectOption('LIST')
-  await page.getByRole('button', { name: 'Save display' }).click()
+  const saveDisplay = page.getByRole('button', { name: 'Save display' })
+  await expect(saveDisplay.locator('svg')).toHaveAttribute(
+    'aria-hidden',
+    'true',
+  )
+  await saveDisplay.click()
 
   await page.getByRole('link', { name: 'MY / LIBRARY' }).click()
   await page
@@ -156,7 +199,14 @@ test('a user can register and receives a default library', async ({ page }) => {
   await expect(page.locator('#library-editor-settings')).toHaveCount(0)
   await expect(page.locator('#library-owner-settings')).toHaveCount(0)
 
-  await page.locator('#library-settings-link').click()
+  const librarySettings = page
+    .locator('#library-header')
+    .getByRole('link', { name: 'Settings' })
+  await expect(librarySettings.locator('svg')).toHaveAttribute(
+    'aria-hidden',
+    'true',
+  )
+  await librarySettings.click()
   await expect(
     page.getByRole('heading', { name: 'Library settings' }),
   ).toBeVisible()
@@ -171,4 +221,17 @@ test('a user can register and receives a default library', async ({ page }) => {
   await expect(page.getByRole('link', { name: /Audit log/ })).toBeVisible()
   await expect(page.locator('#library-sharing-settings')).toBeVisible()
   await expect(page.locator('#library-ownership-settings')).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Save library' }).locator('svg'),
+  ).toHaveAttribute('aria-hidden', 'true')
+  await expect(
+    page.getByRole('button', { name: 'Delete library' }).locator('svg'),
+  ).toHaveAttribute('aria-hidden', 'true')
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
 })

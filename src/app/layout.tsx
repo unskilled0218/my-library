@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 import { currentAdmin, currentUser } from '@/lib/auth'
 import { adminLogoutAction, logoutAction } from '@/app/actions'
 import { HeaderSearch } from '@/components/header-search'
+import { SettingsIcon } from '@/components/icons'
 import { LocaleProvider } from '@/components/locale-provider'
 import { LANGUAGE_TAGS } from '@/lib/i18n/config'
 import { getCookieLanguage, getLanguage } from '@/lib/i18n/server'
@@ -58,8 +59,12 @@ export default async function RootLayout({
                     <span className="hidden text-ink/60 sm:inline">
                       {user.loginId}
                     </span>
-                    <Link className="button button-secondary" href="/settings">
-                      {messages.settings}
+                    <Link
+                      className="button button-secondary h-10 w-10 p-0"
+                      href="/settings"
+                      aria-label={messages.settings}
+                    >
+                      <SettingsIcon />
                     </Link>
                     <form action={logoutAction}>
                       <button type="submit">{messages.signOut}</button>

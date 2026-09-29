@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { deleteBookAction, updateBookAction } from '@/app/actions'
+import { DeleteIcon, SaveIcon } from '@/components/icons'
 import { libraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -168,7 +169,12 @@ export default async function BookPage({
                 {messages.personalComment}
                 <textarea name="comment" rows={5} defaultValue={book.comment} />
               </label>
-              <button className="sm:col-span-2">{messages.saveBook}</button>
+              <button
+                className="h-10 w-10 justify-self-end p-0 sm:col-span-2"
+                aria-label={messages.saveBook}
+              >
+                <SaveIcon />
+              </button>
             </form>
           )}
         </div>
@@ -176,7 +182,12 @@ export default async function BookPage({
       {canWrite && (
         <form action={deleteBookAction} className="mt-8 text-right">
           <input type="hidden" name="bookId" value={id} />
-          <button className="bg-rust">{messages.deleteBook}</button>
+          <button
+            className="h-10 w-10 bg-rust p-0"
+            aria-label={messages.deleteBook}
+          >
+            <DeleteIcon />
+          </button>
         </form>
       )}
     </div>

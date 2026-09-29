@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { CloseIcon } from '@/components/icons'
 import { useLanguage } from '@/components/locale-provider'
 import { searchMessages } from '@/lib/i18n/search'
 
@@ -76,9 +77,10 @@ export function IsbnScanner({
         className="button-secondary w-full"
         type="button"
         autoFocus
+        aria-label={messages.closeCamera}
         onClick={close}
       >
-        {messages.closeCamera}
+        <CloseIcon />
       </button>
     </div>
   )

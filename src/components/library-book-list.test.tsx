@@ -57,16 +57,19 @@ describe('LibraryBookList', () => {
     const initialUrl = window.location.href
     renderList('GRID', 'EN')
 
-    expect(screen.getByRole('button', { name: 'Grid' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    const grid = screen.getByRole('button', { name: 'Grid' })
+    const list = screen.getByRole('button', { name: 'List' })
+    expect(grid).toHaveAttribute('aria-pressed', 'true')
+    expect(grid).not.toHaveTextContent('Grid')
+    expect(list).not.toHaveTextContent('List')
+    expect(grid.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(list.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     expect(document.querySelector('#library-book-list')).toHaveAttribute(
       'data-view',
       'GRID',
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'List' }))
+    fireEvent.click(list)
 
     expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute(
       'aria-pressed',
