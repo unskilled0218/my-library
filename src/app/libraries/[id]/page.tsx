@@ -36,7 +36,6 @@ export default async function LibraryPage({
     ...(query.location ? { location: query.location } : {}),
     ...(query.genre ? { genre: query.genre } : {}),
   }
-  const canWrite = access === 'OWNER' || access === 'EDITOR'
   const [genreOptions, viewerSettings] = await Promise.all([
     db.genre.findMany({ orderBy: { name: 'asc' } }),
     db.userDisplaySettings.findUnique({ where: { userId: user.id } }),
@@ -128,11 +127,6 @@ export default async function LibraryPage({
           <p className="mt-3 max-w-2xl text-ink/60">{library.description}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canWrite && (
-            <Link className="button" href={`/libraries/${id}/search`}>
-              Add from Kyobo
-            </Link>
-          )}
           <Link
             id="library-settings-link"
             className="button button-secondary"

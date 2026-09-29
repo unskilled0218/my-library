@@ -1,79 +1,83 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 
-export function IsbnScanner() {
-  const router = useRouter()
+export function IsbnScanner({
+  onDetected,
+  onClose,
+}: {
+  onDetected: (isbn: string) => void
+  onClose: () => void
+}) {
   const video = useRef<HTMLVideoElement>(null)
   const controls = useRef<{ stop: () => void } | null>(null)
-  const [active, setActive] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => () => controls.current?.stop(), [])
+  useEffect(() => {
+    let disposed = false
 
-  async function start() {
-    setError('')
-    setActive(true)
-    try {
-      const { BrowserMultiFormatReader } = await import('@zxing/browser')
-      const reader = new BrowserMultiFormatReader()
-      controls.current = await reader.decodeFromVideoDevice(
-        undefined,
-        video.current!,
-        (result) => {
-          const isbn = result?.getText().replace(/[-\s]/g, '')
-          if (isbn && /^\d{10,13}$/.test(isbn)) {
-            controls.current?.stop()
-            setActive(false)
-            router.push(`?q=${encodeURIComponent(isbn)}`)
-          }
-        },
-      )
-    } catch {
-      setError('Camera scanning is unavailable. Enter the ISBN below.')
-      setActive(false)
+    async function start() {
+      try {
+        const { BrowserMultiFormatReader } = await import('@zxing/browser')
+        const reader = new BrowserMultiFormatReader()
+        const scannerControls = await reader.decodeFromConstraints(
+          { video: { facingMode: { ideal: 'environment' } }, audio: false },
+          video.current!,
+          (result) => {
+            const isbn = result?.getText().replace(/[-\s]/g, '')
+            if (isbn && /^\d{10,13}$/.test(isbn)) {
+              controls.current?.stop()
+              controls.current = null
+              onDetected(isbn)
+            }
+          },
+        )
+        if (disposed) scannerControls.stop()
+        else controls.current = scannerControls
+      } catch {
+        if (!disposed)
+          setError('Camera scanning is unavailable. Enter the ISBN instead.')
+      }
     }
-  }
 
-  function stop() {
+    void start()
+    return () => {
+      disposed = true
+      controls.current?.stop()
+      controls.current = null
+    }
+  }, [onDetected])
+
+  function close() {
     controls.current?.stop()
     controls.current = null
-    setActive(false)
+    onClose()
   }
 
   return (
-    <div id="isbn-scanner" className="rounded-2xl bg-ink/5 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="font-semibold">Scan an ISBN barcode</p>
-          <p className="text-xs text-ink/60">
-            Camera access starts only when requested.
-          </p>
-        </div>
-        {active ? (
-          <button type="button" onClick={stop}>
-            Stop
-          </button>
-        ) : (
-          <button type="button" onClick={start}>
-            Open camera
-          </button>
-        )}
-      </div>
-      {active && (
-        <video
-          ref={video}
-          className="mt-4 aspect-video w-full rounded-xl bg-black object-cover"
-          muted
-          playsInline
-        />
-      )}
+    <div id="isbn-scanner" className="space-y-4">
+      <video
+        ref={video}
+        className="aspect-video w-full rounded-xl bg-black object-cover"
+        muted
+        playsInline
+      />
+      <p className="text-sm text-ink/60" role="status">
+        Point the rear camera at an ISBN barcode.
+      </p>
       {error && (
-        <p className="mt-3 text-sm text-rust" role="alert">
+        <p className="text-sm text-rust" role="alert">
           {error}
         </p>
       )}
+      <button
+        className="button-secondary w-full"
+        type="button"
+        autoFocus
+        onClick={close}
+      >
+        Close camera
+      </button>
     </div>
   )
 }

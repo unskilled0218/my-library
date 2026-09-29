@@ -8,6 +8,12 @@ test('landing page is usable', async ({ page }) => {
   await expect(
     page.getByRole('link', { name: 'Start a library' }),
   ).toBeVisible()
+  const headerSearch = page.locator('#header-search-form')
+  await expect(headerSearch.getByLabel('Search books')).toBeVisible()
+  await expect(headerSearch.locator('#header-search-source')).toHaveText(
+    'Kyobo',
+  )
+  await expect(headerSearch.locator('option[value="library"]')).toHaveCount(0)
 })
 
 test('a user can register and receives a default library', async ({ page }) => {
@@ -57,6 +63,16 @@ test('a user can register and receives a default library', async ({ page }) => {
     }),
   ).toBe(true)
   await expect(page.locator('#library-filter-panel')).toBeHidden()
+  await expect(page.locator('#header-search-source')).toHaveValue('all')
+  await expect(
+    page.locator('#header-search-source option[value="kyobo"]'),
+  ).toHaveCount(1)
+  await expect(
+    page.locator('#header-search-source option[value="library"]'),
+  ).toHaveCount(1)
+  await expect(page.getByRole('link', { name: 'Add from Kyobo' })).toHaveCount(
+    0,
+  )
 
   await page.locator('#library-filter-toggle').click()
   await expect(page.locator('#library-filter-panel')).toBeVisible()

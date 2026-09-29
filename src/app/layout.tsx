@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { currentAdmin, currentUser } from '@/lib/auth'
 import { adminLogoutAction, logoutAction } from '@/app/actions'
+import { HeaderSearch } from '@/components/header-search'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -22,7 +24,7 @@ export default async function RootLayout({
         >
           <nav
             id="site-navigation"
-            className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8"
+            className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-4 md:px-8"
           >
             <Link
               href={user ? '/libraries' : '/'}
@@ -30,7 +32,16 @@ export default async function RootLayout({
             >
               MY / LIBRARY
             </Link>
-            <div className="flex items-center gap-2 text-sm">
+            {!admin ? (
+              <div className="col-span-3 row-start-2 min-w-0 md:col-span-1 md:col-start-2 md:row-start-1">
+                <Suspense fallback={<div className="h-10" />}>
+                  <HeaderSearch authenticated={Boolean(user)} />
+                </Suspense>
+              </div>
+            ) : (
+              <div />
+            )}
+            <div className="col-start-3 row-start-1 flex items-center gap-2 text-sm">
               {user ? (
                 <>
                   <span className="hidden text-ink/60 sm:inline">
