@@ -17,6 +17,11 @@ enum BookFormat {
   EBOOK
 }
 
+enum BookFileType {
+  EPUB
+  PDF
+}
+
 enum OwnershipState {
   HAVE
   DONT_HAVE
@@ -183,10 +188,27 @@ model Book {
   library           Library        @relation(fields: [libraryId], references: [id], onDelete: Cascade)
   locationTag       LocationTag?   @relation(fields: [locationTagId], references: [id], onDelete: Restrict)
   genres            BookGenre[]
+  files             BookFile[]
 
   @@index([libraryId, title])
   @@index([libraryId, isbn13])
   @@index([locationTagId])
+}
+
+model BookFile {
+  id           String       @id @default(cuid())
+  type         BookFileType
+  storageKey   String       @unique
+  originalName String
+  mime         String
+  size         Int
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  bookId       String
+  book         Book         @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, type])
+  @@index([bookId])
 }
 
 model BookGenre {

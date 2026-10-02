@@ -37,7 +37,8 @@ ENV NODE_ENV=production \
   HOSTNAME=0.0.0.0 \
   PORT=3000 \
   PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
-  COVER_STORAGE_PATH=/app/data/covers
+  COVER_STORAGE_PATH=/app/data/covers \
+  BOOK_FILE_STORAGE_PATH=/app/data/books
 
 WORKDIR /app
 
@@ -51,7 +52,7 @@ COPY --from=builder --chown=node:node /app/prisma ./prisma
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod 755 /usr/local/bin/docker-entrypoint.sh \
-  && mkdir -p "$COVER_STORAGE_PATH" \
+  && mkdir -p "$COVER_STORAGE_PATH" "$BOOK_FILE_STORAGE_PATH" \
   && chown -R node:node /app/data
 
 USER node

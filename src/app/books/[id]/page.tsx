@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { deleteBookAction, updateBookAction } from '@/app/actions'
 import { DeleteIcon, SaveIcon } from '@/components/icons'
+import { BookFilesPanel } from '@/components/book-files-panel'
 import { libraryAccess } from '@/lib/access'
 import { requireUser } from '@/lib/auth'
 import { db } from '@/lib/db'
@@ -23,6 +24,7 @@ export default async function BookPage({
       library: true,
       locationTag: true,
       genres: { include: { genre: true } },
+      files: { orderBy: { type: 'asc' } },
     },
   })
   if (!book) notFound()
@@ -82,6 +84,15 @@ export default async function BookPage({
               </span>
             ))}
           </div>
+          <BookFilesPanel
+            bookId={book.id}
+            files={book.files.map(({ type, originalName, size }) => ({
+              type,
+              originalName,
+              size,
+            }))}
+            canWrite={canWrite}
+          />
           {canWrite && (
             <form
               id={`book-edit-form-${id}`}

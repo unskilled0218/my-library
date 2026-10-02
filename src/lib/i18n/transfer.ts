@@ -7,7 +7,7 @@ export const transferMessages = defineMessages(
     backToSettings: '설정으로 돌아가기',
     export: '내보내기',
     exportBody:
-      'JSON은 서재 정보, 장르 경로, 독서 데이터, 책장 위치 및 표지 이미지를 보존합니다. 계정 전체 화면 설정은 별도로 관리됩니다. CSV는 스프레드시트 편집에 적합합니다.',
+      'JSON은 서재 정보, 장르 경로, 독서 데이터, 책장 위치 및 표지 이미지를 보존합니다. EPUB과 PDF 파일은 포함하지 않으므로 파일 저장소를 별도로 백업하세요. 계정 전체 화면 설정은 별도로 관리됩니다. CSV는 스프레드시트 편집에 적합합니다.',
     downloadJson: 'JSON 다운로드',
     downloadCsv: 'CSV 다운로드',
     import: '가져오기',
@@ -42,7 +42,7 @@ export const transferMessages = defineMessages(
     backToSettings: 'Back to settings',
     export: 'Export',
     exportBody:
-      'JSON preserves library details, genre paths, reading data, shelf assignments, and cover images. Account-wide display settings are managed separately. CSV is designed for spreadsheet editing.',
+      'JSON preserves library details, genre paths, reading data, shelf assignments, and cover images. EPUB and PDF files are excluded, so back up file storage separately. Account-wide display settings are managed separately. CSV is designed for spreadsheet editing.',
     downloadJson: 'Download JSON',
     downloadCsv: 'Download CSV',
     import: 'Import',

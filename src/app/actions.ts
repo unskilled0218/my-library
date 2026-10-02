@@ -26,6 +26,7 @@ import {
   createUser,
 } from '@/lib/auth'
 import { downloadCover, removeCover } from '@/lib/covers'
+import { removeBookFile } from '@/lib/book-files'
 import { db } from '@/lib/db'
 import { upsertGenrePaths } from '@/lib/genres'
 import { getKyoboBook } from '@/lib/kyobo'
@@ -39,6 +40,16 @@ import {
 
 const value = (form: FormData, key: string) =>
   String(form.get(key) ?? '').trim()
+
+async function removeBookFiles(keys: string[]) {
+  await Promise.all(
+    keys.map((key) =>
+      removeBookFile(key).catch((error) =>
+        console.error('Book file cleanup failed', error),
+      ),
+    ),
+  )
+}
 
 export async function registerAction(form: FormData) {
   const loginId = value(form, 'loginId')
@@ -192,11 +203,12 @@ export async function deleteLibraryAction(form: FormData) {
   const user = await requireUser()
   const libraryId = value(form, 'libraryId')
   await requireLibraryAccess(user, libraryId, 'OWNER')
-  const covers = await db.book.findMany({
-    where: { libraryId },
-    select: { coverKey: true },
-  })
-  await db.$transaction(async (tx) => {
+  const books = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Book" WHERE "libraryId" = ${libraryId} FOR UPDATE`
+    const deleting = await tx.book.findMany({
+      where: { libraryId },
+      select: { coverKey: true, files: { select: { storageKey: true } } },
+    })
     await tx.auditLog.create({
       data: {
         actorType: ActorType.USER,
@@ -209,8 +221,12 @@ export async function deleteLibraryAction(form: FormData) {
       },
     })
     await tx.library.delete({ where: { id: libraryId } })
+    return deleting
   })
-  await Promise.all(covers.map((cover) => removeCover(cover.coverKey)))
+  await Promise.all(books.map((book) => removeCover(book.coverKey)))
+  await removeBookFiles(
+    books.flatMap((book) => book.files.map((file) => file.storageKey)),
+  )
   redirect('/libraries')
 }
 
@@ -575,12 +591,13 @@ export async function deleteBookAction(form: FormData) {
   const user = await requireUser()
   const bookId = value(form, 'bookId')
   const { libraryId } = await requireBookAccess(user, bookId, 'WRITE')
-  const book = await db.book.findUniqueOrThrow({
-    where: { id: bookId },
-    select: { coverKey: true },
-  })
-  await db.$transaction([
-    db.auditLog.create({
+  const book = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Book" WHERE "id" = ${bookId} FOR UPDATE`
+    const deleting = await tx.book.findUniqueOrThrow({
+      where: { id: bookId },
+      select: { coverKey: true, files: { select: { storageKey: true } } },
+    })
+    await tx.auditLog.create({
       data: {
         actorType: ActorType.USER,
         actorId: user.id,
@@ -590,10 +607,12 @@ export async function deleteBookAction(form: FormData) {
         libraryId,
         summary: {},
       },
-    }),
-    db.book.delete({ where: { id: bookId } }),
-  ])
+    })
+    await tx.book.delete({ where: { id: bookId } })
+    return deleting
+  })
   await removeCover(book.coverKey)
+  await removeBookFiles(book.files.map((file) => file.storageKey))
   redirect(`/libraries/${libraryId}`)
 }
 
