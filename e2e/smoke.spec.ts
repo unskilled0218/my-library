@@ -84,6 +84,51 @@ test('landing page is usable', async ({ page }) => {
   ).toBe(true)
 })
 
+test('mobile ISBN scanner is compact and viewport-centered', async ({
+  page,
+}) => {
+  test.skip(test.info().project.name !== 'mobile', 'Mobile scanner layout')
+  await page.goto('/')
+  await page.locator('#header-isbn-camera').click()
+
+  const dialog = page.locator('#header-scanner-dialog')
+  const panel = page.locator('#header-scanner-panel')
+  const video = page.locator('#isbn-scanner video')
+  const close = page.getByRole('button', { name: '카메라 닫기' })
+  await expect(dialog).toBeVisible()
+  await expect(close).toBeVisible()
+
+  const panelBox = await panel.boundingBox()
+  const videoBox = await video.boundingBox()
+  const viewport = page.viewportSize()
+  expect(panelBox).not.toBeNull()
+  expect(videoBox).not.toBeNull()
+  expect(viewport).not.toBeNull()
+  expect(videoBox!.height).toBeGreaterThanOrEqual(95)
+  expect(videoBox!.height).toBeLessThanOrEqual(145)
+  expect(
+    Math.abs(panelBox!.y + panelBox!.height / 2 - viewport!.height / 2),
+  ).toBeLessThanOrEqual(2)
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
+
+  await page.setViewportSize({ width: 412, height: 260 })
+  await close.scrollIntoViewIfNeeded()
+  await expect(close).toBeVisible()
+  const shortDialogBox = await dialog.boundingBox()
+  const shortPanelBox = await panel.boundingBox()
+  expect(shortDialogBox?.height).toBe(260)
+  expect(shortPanelBox!.y).toBeGreaterThanOrEqual(11)
+  expect(shortPanelBox!.y + shortPanelBox!.height).toBeLessThanOrEqual(249)
+  await close.click()
+  await expect(dialog).toHaveCount(0)
+})
+
 test('Kyobo details load progressively on a dedicated page', async ({
   page,
 }) => {

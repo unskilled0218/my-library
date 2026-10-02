@@ -82,14 +82,22 @@ describe('HeaderSearch', () => {
   })
 
   it('opens the mobile scanner and searches with the selected source', () => {
-    renderSearch(true)
+    const { container } = renderSearch(true)
     const camera = screen.getByRole('button', { name: 'ISBN 스캔' })
     expect(camera).toHaveClass('sm:hidden')
     expect(camera).not.toHaveTextContent('스캔')
     expect(camera.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
 
     fireEvent.click(camera)
-    expect(screen.getByRole('dialog', { name: 'ISBN 스캔' })).toBeVisible()
+    const dialog = screen.getByRole('dialog', { name: 'ISBN 스캔' })
+    expect(dialog).toBeVisible()
+    expect(dialog.parentElement).toBe(document.body)
+    expect(container.querySelector('#header-scanner-dialog')).toBeNull()
+    expect(dialog).toHaveClass('h-[100dvh]', 'overflow-y-auto')
+    expect(dialog.querySelector('#header-scanner-panel')).toHaveClass(
+      'mx-auto',
+      'my-auto',
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Detect ISBN' }))
 
     expect(navigation.push).toHaveBeenCalledWith(
