@@ -58,10 +58,10 @@ export function IsbnScanner({
   }
 
   return (
-    <div id="isbn-scanner" className="space-y-4">
+    <div id="isbn-scanner" className="space-y-3">
       <video
         ref={video}
-        className="aspect-video w-full rounded-xl bg-black object-cover"
+        className="h-[clamp(8rem,32dvh,12rem)] w-full rounded-xl bg-black object-cover"
         muted
         playsInline
       />
@@ -74,7 +74,7 @@ export function IsbnScanner({
         </p>
       )}
       <button
-        className="button-secondary min-h-12 w-full"
+        className="button-secondary min-h-10 w-full"
         type="button"
         autoFocus
         aria-label={messages.closeCamera}

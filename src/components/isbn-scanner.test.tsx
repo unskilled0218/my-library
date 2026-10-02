@@ -26,6 +26,10 @@ describe('IsbnScanner', () => {
     )
 
     const close = screen.getByRole('button', { name: 'Close camera' })
+    expect(document.querySelector('video')).toHaveClass(
+      'h-[clamp(8rem,32dvh,12rem)]',
+    )
+    expect(close).toHaveClass('min-h-10')
     expect(close).not.toHaveTextContent('Close camera')
     expect(close.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     expect(close.querySelector('svg')).toHaveAttribute('focusable', 'false')

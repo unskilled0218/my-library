@@ -101,19 +101,19 @@ export function HeaderSearch({ authenticated }: { authenticated: boolean }) {
       {scannerOpen && (
         <div
           id="header-scanner-dialog"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-ink/60 p-3"
           role="dialog"
           aria-modal="true"
           aria-labelledby="header-scanner-title"
         >
-          <div className="w-full max-w-md rounded-3xl bg-paper p-5 shadow-card">
+          <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-paper p-4 shadow-card">
             <h2
               id="header-scanner-title"
               className="font-serif text-2xl font-bold"
             >
               {messages.scanTitle}
             </h2>
-            <div className="mt-4">
+            <div className="mt-3">
               <IsbnScanner
                 onDetected={handleDetected}
                 onClose={() => setScannerOpen(false)}
