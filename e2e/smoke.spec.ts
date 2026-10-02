@@ -84,6 +84,49 @@ test('landing page is usable', async ({ page }) => {
   ).toBe(true)
 })
 
+test('Kyobo details load progressively on a dedicated page', async ({
+  page,
+}) => {
+  const loginId = `kyobo-${Date.now()}-${test.info().project.name}`
+  await page.goto('/register')
+  await page.getByLabel('로그인 ID').fill(loginId)
+  await page.getByLabel('비밀번호').fill('correct-horse-library-staple')
+  await page.getByRole('button', { name: '계속' }).click()
+
+  const search = page.locator('#header-search-form')
+  await search.getByLabel('책 검색').fill('progressive kyobo fixture')
+  await search.getByRole('button', { name: '검색' }).click()
+  const candidate = page.getByRole('heading', {
+    name: 'Progressive Kyobo Test Book',
+  })
+  await expect(candidate).toBeVisible()
+  await candidate.click({ noWaitAfter: true })
+
+  await expect(page).toHaveURL(/\/search\/kyobo\/S000009999999/)
+  await expect(
+    page.getByRole('heading', { name: 'Progressive Kyobo Test Book' }),
+  ).toBeVisible()
+  await expect(page.getByRole('status')).toContainText(
+    '교보문고에서 추가 정보를 불러오고 있습니다.',
+  )
+  await expect(
+    page.getByText('Deterministic canonical details loaded after the preview.'),
+  ).toBeVisible()
+  await expect(page.locator('#kyobo-details-loading')).toHaveCount(0)
+  await expect(page.getByText('Fixture Genre')).toBeVisible()
+  await expect(page.getByRole('button', { name: '서재에 추가' })).toBeVisible()
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
+
+  await page.goBack()
+  await expect(candidate).toBeVisible()
+})
+
 test('a user can register and receives a default library', async ({ page }) => {
   const loginId = `reader-${Date.now()}-${test.info().project.name}`
   await page.goto('/register')

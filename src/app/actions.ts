@@ -34,6 +34,11 @@ import {
   normalizeFolderTitle,
 } from '@/lib/library-folders'
 import { getKyoboBook } from '@/lib/kyobo'
+import {
+  appendKyoboPreview,
+  appendSearchContext,
+  parseKyoboPreview,
+} from '@/lib/kyobo-preview'
 import { setLanguageCookie } from '@/lib/i18n/cookie'
 import { assertRateLimit } from '@/lib/rate-limit'
 import {
@@ -622,14 +627,15 @@ export async function addKyoboBookAction(form: FormData) {
     select: { id: true },
   })
   if (duplicate) {
-    const query = new URLSearchParams({
+    const query = appendSearchContext(new URLSearchParams(), {
       q,
       source,
-      selected: saleId,
       libraryId,
-      status: 'already-exists',
     })
-    redirect(`/search?${query}`)
+    const preview = parseKyoboPreview(form)
+    if (preview) appendKyoboPreview(query, preview)
+    query.set('status', 'already-exists')
+    redirect(`/search/kyobo/${book.saleId}?${query}`)
   }
   const cover = book.coverUrl
     ? await downloadCover(book.coverUrl).catch(() => null)

@@ -1,11 +1,30 @@
 import { chromium } from 'playwright'
 import { load } from 'cheerio'
+import { isKyoboSaleId, kyoboProductUrl } from '@/lib/kyobo-preview'
 import { normalizeIsbn } from '@/lib/validation'
 
 const SEARCH_URL =
   'https://search.kyobobook.co.kr/srp/api/v1/search/autocomplete/shop'
-const PRODUCT_ORIGIN = 'https://product.kyobobook.co.kr'
 const MAX_SEARCH_BYTES = 2_000_000
+const TEST_FIXTURE_QUERY = 'progressive kyobo fixture'
+
+function testFixtureEnabled() {
+  return (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.KYOBO_TEST_FIXTURE === '1'
+  )
+}
+
+function fixtureCandidate(): BookCandidate {
+  return {
+    saleId: 'S000009999999',
+    title: 'Progressive Kyobo Test Book',
+    authors: ['Fixture Author'],
+    isbn: '9791158887544',
+    sourceUrl: kyoboProductUrl('S000009999999'),
+    format: 'PHYSICAL',
+  }
+}
 
 export type GenreNode = { name: string; url: string }
 export type GenrePath = GenreNode[]
@@ -43,7 +62,7 @@ function mapDocument(document: SearchDocument): BookCandidate | null {
     !document.CMDTCODE ||
     !document.CMDT_NAME ||
     !document.SALE_CMDTID ||
-    !/^[A-Z]\d+$/.test(document.SALE_CMDTID)
+    !isKyoboSaleId(document.SALE_CMDTID)
   )
     return null
   const fields = document.TOT_RELATE_HTML_LIST?.split('$@') ?? []
@@ -52,7 +71,7 @@ function mapDocument(document: SearchDocument): BookCandidate | null {
     title: document.CMDT_NAME.trim(),
     authors: fields[3]?.trim() ? [fields[3].trim()] : [],
     isbn: normalizeIsbn(document.CMDTCODE),
-    sourceUrl: `${PRODUCT_ORIGIN}/detail/${document.SALE_CMDTID}`,
+    sourceUrl: kyoboProductUrl(document.SALE_CMDTID),
     format: document.SALE_CMDT_DVSN_CODE_SUB === 'EBK' ? 'EBOOK' : 'PHYSICAL',
     coverUrl: fields.find((field) =>
       field.startsWith('https://contents.kyobobook.co.kr/'),
@@ -130,7 +149,7 @@ export function parseProductHtml(html: string, saleId: string): KyoboBook {
     title,
     authors,
     isbn,
-    sourceUrl: `${PRODUCT_ORIGIN}/detail/${saleId}`,
+    sourceUrl: kyoboProductUrl(saleId),
     description,
     coverUrl,
     genrePaths,
@@ -142,6 +161,8 @@ export async function searchKyobo(keyword: string) {
   const normalized = keyword.trim()
   if (!normalized || normalized.length > 120)
     throw new Error('Enter a search keyword')
+  if (testFixtureEnabled() && normalized === TEST_FIXTURE_QUERY)
+    return [fixtureCandidate()]
   const url = new URL(SEARCH_URL)
   url.searchParams.set('keyword', normalized)
   const response = await fetch(url, {
@@ -156,14 +177,31 @@ export async function searchKyobo(keyword: string) {
 }
 
 export async function getKyoboBook(saleId: string): Promise<KyoboBook> {
-  if (!/^[A-Z]\d+$/.test(saleId)) throw new Error('Invalid Kyobo product ID')
+  if (!isKyoboSaleId(saleId)) throw new Error('Invalid Kyobo product ID')
+  if (testFixtureEnabled() && saleId === 'S000009999999') {
+    await new Promise((resolve) => setTimeout(resolve, 1_500))
+    return {
+      ...fixtureCandidate(),
+      authors: ['Fixture Author', 'Verified Contributor'],
+      description: 'Deterministic canonical details loaded after the preview.',
+      coverUrl: null,
+      genrePaths: [
+        [
+          {
+            name: 'Fixture Genre',
+            url: 'https://store.kyobobook.co.kr/category/domestic/01',
+          },
+        ],
+      ],
+    }
+  }
   const cached = detailCache.get(saleId)
   if (cached && cached.expiresAt > Date.now()) return cached.value
 
   const browser = await chromium.launch({ headless: true })
   try {
     const page = await browser.newPage({ locale: 'ko-KR' })
-    const sourceUrl = `${PRODUCT_ORIGIN}/detail/${saleId}`
+    const sourceUrl = kyoboProductUrl(saleId)
     const response = await page.goto(sourceUrl, {
       waitUntil: 'networkidle',
       timeout: 45_000,

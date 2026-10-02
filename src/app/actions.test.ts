@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   upsertSettings: vi.fn().mockResolvedValue({}),
   setLanguageCookie: vi.fn(),
+  requireLibraryAccess: vi.fn().mockResolvedValue('OWNER'),
 }))
 
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
@@ -20,7 +21,7 @@ vi.mock('@/lib/auth', () => ({
   requireUser: vi.fn().mockResolvedValue({ id: 'user-1' }),
 }))
 vi.mock('@/lib/access', () => ({
-  requireLibraryAccess: vi.fn().mockResolvedValue('OWNER'),
+  requireLibraryAccess: mocks.requireLibraryAccess,
 }))
 vi.mock('@/lib/db', () => ({
   db: {
@@ -70,6 +71,10 @@ describe('addKyoboBookAction', () => {
     form.set('saleId', 'S000001772370')
     form.set('q', 'Dune')
     form.set('source', 'all')
+    form.set('title', 'Untrusted title')
+    form.append('author', 'Untrusted author')
+    form.set('isbn', '9791158887544')
+    form.set('format', 'PHYSICAL')
 
     await expect(addKyoboBookAction(form)).rejects.toThrow('REDIRECT:')
 
@@ -86,7 +91,7 @@ describe('addKyoboBookAction', () => {
       select: { id: true },
     })
     expect(mocks.redirect).toHaveBeenCalledWith(
-      '/search?q=Dune&source=all&selected=S000001772370&libraryId=library-1&status=already-exists',
+      '/search/kyobo/S000001772370?q=Dune&source=all&libraryId=library-1&title=Untrusted+title&author=Untrusted+author&isbn=9791158887544&format=PHYSICAL&status=already-exists',
     )
     expect(mocks.downloadCover).not.toHaveBeenCalled()
   })
@@ -98,15 +103,40 @@ describe('addKyoboBookAction', () => {
     form.set('saleId', 'S000001772370')
     form.set('q', 'Dune')
     form.set('source', 'kyobo')
+    form.set('title', 'A forged preview title')
+    form.append('author', 'A forged author')
+    form.set('isbn', '1234567890')
+    form.set('format', 'EBOOK')
 
     await expect(addKyoboBookAction(form)).rejects.toThrow('REDIRECT:')
 
     expect(mocks.createBook).toHaveBeenCalledOnce()
+    expect(mocks.createBook).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          title: 'Dune',
+          authors: ['Frank Herbert'],
+          isbn13: '9791158887544',
+          format: 'PHYSICAL',
+        }),
+      }),
+    )
     expect(mocks.createAudit).toHaveBeenCalledOnce()
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/libraries/library-1')
     expect(mocks.redirect).toHaveBeenCalledWith(
       '/search?q=Dune&source=kyobo&libraryId=library-1&status=added',
     )
+  })
+
+  it('rejects a forged destination before scraping Kyobo', async () => {
+    mocks.requireLibraryAccess.mockRejectedValueOnce(new Error('Access denied'))
+    const form = new FormData()
+    form.set('libraryId', 'forged-library')
+    form.set('saleId', 'S000001772370')
+
+    await expect(addKyoboBookAction(form)).rejects.toThrow('Access denied')
+
+    expect(mocks.getKyoboBook).not.toHaveBeenCalled()
   })
 })
 
