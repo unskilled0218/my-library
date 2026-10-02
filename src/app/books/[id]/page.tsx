@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { deleteBookAction, updateBookAction } from '@/app/actions'
 import { DeleteIcon, SaveIcon } from '@/components/icons'
@@ -8,6 +9,7 @@ import { db } from '@/lib/db'
 import { booksMessages } from '@/lib/i18n/books'
 import { commonMessages } from '@/lib/i18n/common'
 import { getLanguage } from '@/lib/i18n/server'
+import { flattenedFolders } from '@/lib/library-folders'
 
 const dateInput = (date: Date | null) => date?.toISOString().slice(0, 10) ?? ''
 
@@ -22,6 +24,7 @@ export default async function BookPage({
     where: { id },
     include: {
       library: true,
+      folder: true,
       locationTag: true,
       genres: { include: { genre: true } },
       files: { orderBy: { type: 'asc' } },
@@ -31,15 +34,22 @@ export default async function BookPage({
   const access = await libraryAccess(user.id, book.libraryId)
   if (!access) notFound()
   const canWrite = access === 'OWNER' || access === 'EDITOR'
-  const [locations, language] = await Promise.all([
+  const [locations, folders, language] = await Promise.all([
     canWrite
       ? db.locationTag.findMany({
           where: { userId: book.library.ownerId },
           orderBy: { name: 'asc' },
         })
       : [],
+    canWrite
+      ? db.libraryFolder.findMany({
+          where: { libraryId: book.libraryId },
+          select: { id: true, title: true, parentId: true },
+        })
+      : [],
     getLanguage(),
   ])
+  const folderOptions = canWrite ? flattenedFolders(folders) : []
   const messages = booksMessages[language]
   const common = commonMessages[language]
   return (
@@ -68,6 +78,18 @@ export default async function BookPage({
           </a>
         </div>
         <div>
+          <Link
+            className="text-sm font-semibold text-moss underline"
+            href={
+              book.folderId
+                ? `/libraries/${book.libraryId}?folder=${book.folderId}`
+                : `/libraries/${book.libraryId}`
+            }
+          >
+            {book.folder
+              ? messages.backToFolder.replace('{title}', book.folder.title)
+              : messages.backToLibraryRoot}
+          </Link>
           <p className="eyebrow">{book.library.name}</p>
           <h1 className="mt-3 font-serif text-5xl font-black leading-tight">
             {book.title}
@@ -138,6 +160,18 @@ export default async function BookPage({
                   {locations.map((location) => (
                     <option key={location.id} value={location.id}>
                       {location.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {messages.folder}
+                <select name="folderId" defaultValue={book.folderId ?? ''}>
+                  <option value="">{messages.libraryRoot}</option>
+                  {folderOptions.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {'— '.repeat(folder.depth)}
+                      {folder.title}
                     </option>
                   ))}
                 </select>

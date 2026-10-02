@@ -7,7 +7,7 @@ export const transferMessages = defineMessages(
     backToSettings: '설정으로 돌아가기',
     export: '내보내기',
     exportBody:
-      'JSON은 서재 정보, 장르 경로, 독서 데이터, 책장 위치 및 표지 이미지를 보존합니다. EPUB과 PDF 파일은 포함하지 않으므로 파일 저장소를 별도로 백업하세요. 계정 전체 화면 설정은 별도로 관리됩니다. CSV는 스프레드시트 편집에 적합합니다.',
+      'JSON은 폴더 구조와 표지, 서재 정보, 장르 경로, 독서 데이터, 책장 위치 및 책 표지를 보존합니다. EPUB과 PDF 파일은 포함하지 않으므로 파일 저장소를 별도로 백업하세요. CSV는 폴더 경로를 보존하지만 폴더 표지는 포함하지 않습니다.',
     downloadJson: 'JSON 다운로드',
     downloadCsv: 'CSV 다운로드',
     import: '가져오기',
@@ -27,14 +27,15 @@ export const transferMessages = defineMessages(
     libraryImportResult: '{books}을 가져왔고 {duplicates}을 건너뛰었습니다.',
     invalidOrOversizedFile: '파일이 올바르지 않거나 허용 크기를 초과했습니다.',
     fileCouldNotBeParsed: '파일을 분석할 수 없습니다.',
-    invalidBackupVersion: '파일이 백업 버전 1 또는 2 형식과 일치하지 않습니다.',
+    invalidBackupVersion:
+      '파일이 백업 버전 1, 2 또는 3 형식과 일치하지 않습니다.',
     accountTransferLimit: '계정이 지원되는 전송 한도를 초과했습니다.',
     accountBackupSizeLimit: '계정 백업이 50MB 전송 한도를 초과했습니다.',
     tooManyAttempts: '가져오기 시도가 너무 많습니다. 나중에 다시 시도하세요.',
     invalidAccountBackup: '50MB 이하의 올바른 계정 JSON 백업을 선택하세요.',
     accountBackupCouldNotBeParsed: '계정 백업을 분석할 수 없습니다.',
     invalidAccountBackupVersion:
-      '파일이 계정 백업 버전 1 또는 2 형식과 일치하지 않습니다.',
+      '파일이 계정 백업 버전 1, 2 또는 3 형식과 일치하지 않습니다.',
   },
   {
     eyebrow: 'Portability',
@@ -42,7 +43,7 @@ export const transferMessages = defineMessages(
     backToSettings: 'Back to settings',
     export: 'Export',
     exportBody:
-      'JSON preserves library details, genre paths, reading data, shelf assignments, and cover images. EPUB and PDF files are excluded, so back up file storage separately. Account-wide display settings are managed separately. CSV is designed for spreadsheet editing.',
+      'JSON preserves folder structure and covers, library details, genre paths, reading data, shelf assignments, and book covers. EPUB and PDF files are excluded, so back up file storage separately. CSV preserves folder paths but omits folder covers.',
     downloadJson: 'Download JSON',
     downloadCsv: 'Download CSV',
     import: 'Import',
@@ -62,7 +63,7 @@ export const transferMessages = defineMessages(
     libraryImportResult: 'Imported {books}; skipped {duplicates}.',
     invalidOrOversizedFile: 'Invalid or oversized file',
     fileCouldNotBeParsed: 'The file could not be parsed',
-    invalidBackupVersion: 'The file does not match backup version 1 or 2',
+    invalidBackupVersion: 'The file does not match backup version 1, 2, or 3',
     accountTransferLimit: 'The account exceeds the supported transfer limits',
     accountBackupSizeLimit:
       'The account backup exceeds the 50 MB transfer limit',
@@ -70,7 +71,7 @@ export const transferMessages = defineMessages(
     invalidAccountBackup: 'Select a valid account JSON backup under 50 MB',
     accountBackupCouldNotBeParsed: 'The account backup could not be parsed',
     invalidAccountBackupVersion:
-      'The file does not match account backup version 1 or 2',
+      'The file does not match account backup version 1, 2, or 3',
   },
 )
 
@@ -85,7 +86,7 @@ export const transferErrorKeys = {
   'account-parse-failed': 'accountBackupCouldNotBeParsed',
   'Invalid or oversized file': 'invalidOrOversizedFile',
   'The file could not be parsed': 'fileCouldNotBeParsed',
-  'The file does not match backup version 1 or 2': 'invalidBackupVersion',
+  'The file does not match backup version 1, 2, or 3': 'invalidBackupVersion',
   'The account exceeds the supported transfer limits': 'accountTransferLimit',
   'The account backup exceeds the 50 MB transfer limit':
     'accountBackupSizeLimit',

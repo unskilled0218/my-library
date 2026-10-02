@@ -17,7 +17,9 @@ import { setLanguageCookie } from '@/lib/i18n/cookie'
 import {
   accountBackupSchema,
   type AccountImportLibrary,
+  type ImportFolder,
   type ImportBook,
+  type Version3ImportBook,
 } from '@/lib/transfer-schema'
 
 const MAX_IMPORT_BYTES = 50 * 1024 * 1024
@@ -40,6 +42,22 @@ function pathsForGenre(
   return result
 }
 
+function orderFolders(folders: ImportFolder[]) {
+  const ordered: ImportFolder[] = []
+  const remaining = new Map(folders.map((folder) => [folder.key, folder]))
+  while (remaining.size) {
+    let added = 0
+    for (const [key, folder] of remaining)
+      if (!folder.parentKey || !remaining.has(folder.parentKey)) {
+        ordered.push(folder)
+        remaining.delete(key)
+        added += 1
+      }
+    if (!added) throw new Error('Folder cycle detected')
+  }
+  return ordered
+}
+
 export async function GET() {
   const user = await currentUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
@@ -52,6 +70,7 @@ export async function GET() {
           orderBy: { createdAt: 'asc' },
           include: { genres: true, locationTag: true },
         },
+        folders: { orderBy: { createdAt: 'asc' } },
       },
     }),
     db.userDisplaySettings.findUnique({ where: { userId: user.id } }),
@@ -63,45 +82,85 @@ export async function GET() {
   ])
   const genreMap = new Map(genres.map((genre) => [genre.id, genre]))
   const exportedLibraries = await Promise.all(
-    libraries.map(async (library) => ({
-      name: library.name,
-      description: library.description,
-      books: await Promise.all(
-        library.books.map(async (book) => ({
-          title: book.title,
-          authors: book.authors,
-          description: book.description,
-          isbn10: book.isbn10,
-          isbn13: book.isbn13,
-          sourceUrl: book.sourceUrl,
-          format: book.format,
-          ownershipState: book.ownershipState,
-          readingState: book.readingState,
-          readingStartedAt: book.readingStartedAt?.toISOString() ?? null,
-          readingFinishedAt: book.readingFinishedAt?.toISOString() ?? null,
-          rating: book.rating,
-          comment: book.comment,
-          location: book.locationTag?.name ?? null,
-          genrePaths: book.genres.map(({ genreId }) =>
-            pathsForGenre(genreId, genreMap),
-          ),
-          cover: book.coverKey
-            ? {
-                mime: book.coverMime,
-                base64: (
-                  await readFile(
-                    path.join(getEnv().COVER_STORAGE_PATH, book.coverKey),
-                  )
-                ).toString('base64'),
-              }
-            : null,
-        })),
-      ),
-    })),
+    libraries.map(async (library) => {
+      const bookKeys = new Map(
+        library.books.map((book, index) => [book.id, `book-${index + 1}`]),
+      )
+      const folderKeys = new Map(
+        library.folders.map((folder, index) => [
+          folder.id,
+          `folder-${index + 1}`,
+        ]),
+      )
+      return {
+        name: library.name,
+        description: library.description,
+        books: await Promise.all(
+          library.books.map(async (book) => ({
+            key: bookKeys.get(book.id)!,
+            folderKey: book.folderId
+              ? (folderKeys.get(book.folderId) ?? null)
+              : null,
+            title: book.title,
+            authors: book.authors,
+            description: book.description,
+            isbn10: book.isbn10,
+            isbn13: book.isbn13,
+            sourceUrl: book.sourceUrl,
+            format: book.format,
+            ownershipState: book.ownershipState,
+            readingState: book.readingState,
+            readingStartedAt: book.readingStartedAt?.toISOString() ?? null,
+            readingFinishedAt: book.readingFinishedAt?.toISOString() ?? null,
+            rating: book.rating,
+            comment: book.comment,
+            location: book.locationTag?.name ?? null,
+            genrePaths: book.genres.map(({ genreId }) =>
+              pathsForGenre(genreId, genreMap),
+            ),
+            cover: book.coverKey
+              ? {
+                  mime: book.coverMime,
+                  base64: (
+                    await readFile(
+                      path.join(getEnv().COVER_STORAGE_PATH, book.coverKey),
+                    )
+                  ).toString('base64'),
+                }
+              : null,
+          })),
+        ),
+        folders: await Promise.all(
+          library.folders.map(async (folder) => ({
+            key: folderKeys.get(folder.id)!,
+            title: folder.title,
+            parentKey: folder.parentId
+              ? (folderKeys.get(folder.parentId) ?? null)
+              : null,
+            coverBookKey: folder.coverBookId
+              ? (bookKeys.get(folder.coverBookId) ?? null)
+              : null,
+            customCover: folder.customCoverKey
+              ? {
+                  mime: folder.customCoverMime,
+                  base64: (
+                    await readFile(
+                      path.join(
+                        getEnv().COVER_STORAGE_PATH,
+                        folder.customCoverKey,
+                      ),
+                    )
+                  ).toString('base64'),
+                }
+              : null,
+          })),
+        ),
+      }
+    }),
   )
 
   const backup = {
-    version: 2,
+    version: 3,
     settings: settings
       ? {
           defaultView: settings.defaultView,
@@ -184,7 +243,16 @@ export async function POST(request: Request) {
     const prepared: {
       library: AccountImportLibrary
       books: {
-        book: ImportBook
+        book: ImportBook | Version3ImportBook
+        cover: {
+          key: string
+          mime: string
+          width: number
+          height: number
+        } | null
+      }[]
+      folders: {
+        folder: ImportFolder
         cover: {
           key: string
           mime: string
@@ -202,7 +270,19 @@ export async function POST(request: Request) {
         if (cover) writtenCovers.push(cover.key)
         books.push({ book, cover })
       }
-      prepared.push({ library, books })
+      const folders = []
+      for (const folder of orderFolders(
+        'folders' in library ? library.folders : [],
+      )) {
+        const cover = folder.customCover
+          ? await saveCoverData(
+              Buffer.from(folder.customCover.base64, 'base64'),
+            )
+          : null
+        if (cover) writtenCovers.push(cover.key)
+        folders.push({ folder, cover })
+      }
+      prepared.push({ library, books, folders })
     }
     const locationNames = new Set([
       ...result.data.shelfTags,
@@ -228,7 +308,7 @@ export async function POST(request: Request) {
           })
           locationIds.set(name, location.id)
         }
-        for (const { library, books } of prepared) {
+        for (const { library, books, folders } of prepared) {
           const createdLibrary = await tx.library.create({
             data: {
               ownerId: user.id,
@@ -236,9 +316,27 @@ export async function POST(request: Request) {
               description: library.description,
             },
           })
+          const folderIds = new Map<string, string>()
+          for (const { folder, cover } of folders) {
+            const created = await tx.libraryFolder.create({
+              data: {
+                libraryId: createdLibrary.id,
+                title: folder.title,
+                parentId: folder.parentKey
+                  ? folderIds.get(folder.parentKey)
+                  : undefined,
+                customCoverKey: cover?.key,
+                customCoverMime: cover?.mime,
+                customCoverWidth: cover?.width,
+                customCoverHeight: cover?.height,
+              },
+            })
+            folderIds.set(folder.key, created.id)
+          }
+          const bookIds = new Map<string, string>()
           for (const { book, cover } of books) {
             const genreIds = await upsertGenrePaths(tx, book.genrePaths)
-            await tx.book.create({
+            const created = await tx.book.create({
               data: {
                 libraryId: createdLibrary.id,
                 title: book.title,
@@ -261,6 +359,10 @@ export async function POST(request: Request) {
                 locationTagId: book.location
                   ? locationIds.get(book.location)
                   : undefined,
+                folderId:
+                  'folderKey' in book && book.folderKey
+                    ? folderIds.get(book.folderKey)
+                    : undefined,
                 coverKey: cover?.key,
                 coverMime: cover?.mime,
                 coverWidth: cover?.width,
@@ -268,7 +370,14 @@ export async function POST(request: Request) {
                 genres: { create: genreIds.map((genreId) => ({ genreId })) },
               },
             })
+            if ('key' in book) bookIds.set(book.key, created.id)
           }
+          for (const { folder } of folders)
+            if (folder.coverBookKey)
+              await tx.libraryFolder.update({
+                where: { id: folderIds.get(folder.key)! },
+                data: { coverBookId: bookIds.get(folder.coverBookKey)! },
+              })
           await tx.auditLog.create({
             data: {
               actorType: ActorType.USER,
@@ -290,7 +399,7 @@ export async function POST(request: Request) {
   }
   revalidatePath('/settings')
   revalidatePath('/libraries', 'layout')
-  if (result.data.version === 2 && result.data.settings?.language)
+  if (result.data.version !== 1 && result.data.settings?.language)
     await setLanguageCookie(result.data.settings.language)
   return Response.json({
     imported: bookCount,

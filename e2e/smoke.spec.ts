@@ -1,5 +1,57 @@
 import { readFile } from 'node:fs/promises'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+async function importTestBook(
+  page: Page,
+  libraryHref: string,
+  title: string,
+  sourceId: string,
+) {
+  await page.goto(libraryHref)
+  const result = await page.evaluate(
+    async ({ libraryHref, title, sourceId }) => {
+      const form = new FormData()
+      form.set('apply', 'true')
+      form.set(
+        'file',
+        new File(
+          [
+            JSON.stringify({
+              version: 2,
+              library: { name: 'Test', description: '' },
+              books: [
+                {
+                  title,
+                  authors: ['Test Author'],
+                  isbn13: `978${sourceId.slice(-10).padStart(10, '0')}`,
+                  sourceUrl: `https://product.kyobobook.co.kr/detail/${sourceId}`,
+                  genrePaths: [
+                    [
+                      {
+                        name: 'Test',
+                        url: 'https://store.kyobobook.co.kr/category/domestic/01',
+                      },
+                    ],
+                  ],
+                },
+              ],
+            }),
+          ],
+          'book.json',
+          { type: 'application/json' },
+        ),
+      )
+      const response = await fetch(
+        `/api${libraryHref.replace(/\?.*$/, '')}/transfer`,
+        { method: 'POST', body: form },
+      )
+      return { status: response.status, body: await response.text() }
+    },
+    { libraryHref, title, sourceId },
+  )
+  expect(result.status, result.body).toBe(200)
+  await page.goto(libraryHref)
+}
 
 test('landing page is usable', async ({ page }) => {
   await page.goto('/')
@@ -19,9 +71,10 @@ test('landing page is usable', async ({ page }) => {
   await expect(
     headerSearch.getByRole('button', { name: '검색' }).locator('svg'),
   ).toHaveAttribute('aria-hidden', 'true')
-  await expect(
-    headerSearch.getByRole('button', { name: 'ISBN 스캔' }).locator('svg'),
-  ).toHaveAttribute('aria-hidden', 'true')
+  await expect(headerSearch.locator('#header-isbn-camera svg')).toHaveAttribute(
+    'aria-hidden',
+    'true',
+  )
   expect(
     await page.evaluate(
       () =>
@@ -38,13 +91,15 @@ test('a user can register and receives a default library', async ({ page }) => {
   await page.getByLabel('비밀번호').fill('correct-horse-library-staple')
   await page.getByRole('button', { name: '계속' }).click()
   await expect(page).toHaveURL(/\/libraries/)
-  await expect(page.getByRole('heading', { name: '내 서재' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: '내 서재', level: 1 }),
+  ).toBeVisible()
 
   await page
     .locator('#site-navigation')
     .getByRole('link', { name: '설정' })
     .click()
-  await page.getByLabel('언어').selectOption('EN')
+  await page.locator('select[name="language"]').selectOption('EN')
   const saveLanguage = page.getByRole('button', { name: '언어 저장' })
   await expect(saveLanguage.locator('svg')).toHaveAttribute(
     'aria-hidden',
@@ -75,7 +130,10 @@ test('a user can register and receives a default library', async ({ page }) => {
     }),
   ).toBe(true)
 
-  await page.getByRole('heading', { name: '내 서재' }).click()
+  await page
+    .locator('#library-card-list')
+    .getByRole('heading', { name: '내 서재' })
+    .click()
   const searchRow = page.locator('#library-search-row')
   await expect(searchRow).toBeVisible()
   await expect(searchRow.locator('#library-search-input')).toBeVisible()
@@ -129,7 +187,7 @@ test('a user can register and receives a default library', async ({ page }) => {
   ).toHaveAttribute('aria-hidden', 'true')
   const listView = page.getByRole('button', { name: 'List' })
   await expect(listView.locator('svg')).toHaveAttribute('aria-hidden', 'true')
-  await listView.click()
+  await listView.evaluate((button: HTMLButtonElement) => button.click())
   await expect(page.locator('#library-book-list')).toHaveAttribute(
     'data-view',
     'LIST',
@@ -243,30 +301,31 @@ test('an owner can manage independent EPUB and PDF files', async ({ page }) => {
   await page.getByLabel('로그인 ID').fill(`files-${suffix}`)
   await page.getByLabel('비밀번호').fill('correct-horse-library-staple')
   await page.getByRole('button', { name: '계속' }).click()
-
-  await page.goto('/search?q=file-test&source=kyobo')
-  const manual = page.locator('#manual-book-fallback')
-  await manual.locator('summary').click()
-  await manual.locator('input[name="title"]').fill(`File test ${suffix}`)
-  await manual.locator('input[name="authors"]').fill('Test Author')
-  await manual
-    .locator('input[name="isbn"]')
-    .fill(`979${String(Date.now()).slice(-10)}`)
-  await manual
-    .locator('input[name="sourceUrl"]')
-    .fill('https://product.kyobobook.co.kr/detail/S000000000001')
-  await manual
-    .locator('textarea[name="genrePaths"]')
-    .fill('Test | https://store.kyobobook.co.kr/category/domestic/01')
-  await manual.locator('button').click()
-
+  const libraryHref = await page
+    .locator('#library-card-list a')
+    .first()
+    .getAttribute('href')
+  expect(libraryHref).toBeTruthy()
+  await importTestBook(
+    page,
+    libraryHref!,
+    `File test ${suffix}`,
+    'S000000000001',
+  )
   await page.getByRole('heading', { name: `File test ${suffix}` }).click()
   await page.getByLabel('EPUB 파일 선택').setInputFiles({
     name: 'first.epub',
     mimeType: 'application/epub+zip',
     buffer: Buffer.from([0x50, 0x4b, 0x03, 0x04, 1]),
   })
+  const epubResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().includes('/files/EPUB') &&
+      response.request().method() === 'POST',
+  )
   await page.getByRole('button', { name: 'EPUB 업로드' }).click()
+  const epubResponse = await epubResponsePromise
+  expect(epubResponse.status(), await epubResponse.text()).toBe(201)
   await expect(page.getByRole('link', { name: 'EPUB 다운로드' })).toHaveText(
     'first.epub',
   )
@@ -300,4 +359,74 @@ test('an owner can manage independent EPUB and PDF files', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'EPUB 다운로드' })).toHaveCount(0)
   await expect(page.getByText('업로드된 파일이 없습니다.')).toHaveCount(1)
   await expect(page.getByRole('link', { name: 'PDF 다운로드' })).toBeVisible()
+})
+
+test('an owner can organize books in nested folders', async ({ page }) => {
+  const suffix = `${Date.now()}-${test.info().project.name}`
+  const parentTitle = `Parent ${suffix}`
+  const childTitle = `Child ${suffix}`
+  const bookTitle = `Folder book ${suffix}`
+  await page.goto('/register')
+  await page.getByLabel('로그인 ID').fill(`folders-${suffix}`)
+  await page.getByLabel('비밀번호').fill('correct-horse-library-staple')
+  await page.getByRole('button', { name: '계속' }).click()
+  await page
+    .locator('#library-card-list')
+    .getByRole('heading', { name: '내 서재' })
+    .click()
+  await expect(page).toHaveURL(/\/libraries\/[^/?]+$/)
+  const libraryHref = new URL(page.url()).pathname
+
+  let folderForm = page.locator('#folder-create-form')
+  await page.locator('summary').filter({ hasText: '폴더 만들기' }).click()
+  await folderForm.getByLabel('폴더 제목').fill(parentTitle)
+  await folderForm.getByLabel('폴더 표지').selectOption('upload')
+  await folderForm.getByLabel('사용자 지정 표지 이미지').setInputFiles({
+    name: 'folder.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nGQAAAAASUVORK5CYII=',
+      'base64',
+    ),
+  })
+  await folderForm.getByRole('button', { name: '폴더 만들기' }).click()
+  await expect(page.getByRole('link', { name: parentTitle })).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
+
+  await page.locator('summary').filter({ hasText: '폴더 만들기' }).click()
+  folderForm = page.locator('#folder-create-form')
+  await folderForm.getByLabel('폴더 제목').fill(childTitle)
+  await folderForm.getByRole('button', { name: '폴더 만들기' }).click()
+  await expect(page.getByRole('link', { name: childTitle })).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
+
+  await importTestBook(page, libraryHref, bookTitle, 'S000000000002')
+  await page.getByRole('heading', { name: bookTitle }).click()
+  await expect(page).toHaveURL(/\/books\//)
+  await page
+    .locator('select[name="folderId"]')
+    .selectOption({ label: `— ${childTitle}` })
+  await page.getByRole('button', { name: '책 저장' }).click()
+  await page
+    .getByRole('link', { name: `${childTitle} 폴더로 돌아가기` })
+    .click()
+  await expect(page.getByRole('heading', { name: bookTitle })).toBeVisible()
+
+  await page.getByRole('link', { name: '서재 홈' }).click()
+  const parentCard = page.getByRole('link', { name: new RegExp(parentTitle) })
+  await expect(parentCard.locator('img')).toHaveAttribute(
+    'src',
+    /\/api\/folders\/.+\/cover/,
+  )
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
 })
