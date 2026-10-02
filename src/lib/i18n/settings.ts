@@ -52,7 +52,7 @@ export const settingsMessages = defineMessages(
     portability: '이동성',
     backupTitle: '전체 서재 백업',
     backupBody:
-      '소유한 모든 서재의 책, 표지, 장르, 책장 위치, 책장 태그, 화면 및 언어 설정을 내보냅니다. 가져오기는 기존 컬렉션을 바꾸지 않고 새 서재를 만듭니다. 계정 백업은 50MB로 제한됩니다.',
+      '소유한 모든 서재의 책, 표지, 장르, 책장 위치, 책장 태그, 화면 및 언어 설정을 내보냅니다. EPUB과 PDF 파일은 포함하지 않으므로 파일 저장소를 별도로 백업하세요. 가져오기는 기존 컬렉션을 바꾸지 않고 새 서재를 만듭니다. 계정 백업은 50MB로 제한됩니다.',
     export: '내보내기',
     download: '모든 서재 다운로드',
     import: '가져오기',
@@ -109,7 +109,7 @@ export const settingsMessages = defineMessages(
     portability: 'Portability',
     backupTitle: 'All libraries backup',
     backupBody:
-      'Export every library you own with books, covers, genres, shelf assignments, shelf tags, display preferences, and language. Importing creates new libraries and does not replace existing collections. Account backups are limited to 50 MB.',
+      'Export every library you own with books, covers, genres, shelf assignments, shelf tags, display preferences, and language. EPUB and PDF files are excluded, so back up file storage separately. Importing creates new libraries and does not replace existing collections. Account backups are limited to 50 MB.',
     export: 'Export',
     download: 'Download all libraries',
     import: 'Import',

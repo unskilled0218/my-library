@@ -1,6 +1,6 @@
 # My Library
 
-A responsive personal book-management service for private and shared libraries. It supports Kyobo search/import, hierarchical genres, local cover storage, reading history, backups, statistics, and a separate administrator realm.
+A responsive personal book-management service for private and shared libraries. It supports Kyobo search/import, hierarchical genres, local cover and EPUB/PDF storage, reading history, backups, statistics, and a separate administrator realm.
 
 ## Languages
 
@@ -24,7 +24,7 @@ The Docker host must trust the certificate authority that issued the `git.lan` c
 
 If no administrator environment credentials are present, inspect `docker compose logs app` for the short-lived `/admin/setup?token=...` URL after the database becomes ready. The setup route closes permanently after the first administrator is created.
 
-PostgreSQL and downloaded covers are held in the `postgres` and `covers` named volumes. Back up PostgreSQL before an upgrade, retain the backup until the new image is verified, and treat the cover volume as application data. For example:
+PostgreSQL, downloaded covers, and uploaded EPUB/PDF files are held in the `postgres`, `covers`, and `book_files` named volumes. Back up PostgreSQL before an upgrade, retain the backup until the new image is verified, and include both file volumes in the deployment's volume backup and restore procedure. JSON and CSV exports intentionally exclude EPUB/PDF binaries, so they cannot replace a `book_files` volume backup. For example:
 
 ```bash
 docker compose exec -T db pg_dump -U library -d library -Fc > my-library.dump
@@ -44,14 +44,23 @@ To roll back application code, set `MY_LIBRARY_VERSION` to the previous immutabl
 
 ## Local development
 
-Use the development override to expose only PostgreSQL from Compose, then run Next.js on the host. Keep `SESSION_SECRET` and `ALLOWED_DEV_ORIGINS` in `.env`, and override the container-oriented database and cover paths for host commands:
+To build the current checkout with `Dockerfile` and run the complete app/database stack without pulling the registry image:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+docker compose -f docker-compose.dev.yml up --build
+```
+
+Open `http://localhost:3000`. The local stack applies pending Prisma migrations before starting the app and persists PostgreSQL, covers, and EPUB/PDF files in its own named volumes.
+
+Use the development Compose file to expose only PostgreSQL, then run Next.js on the host. Keep `SESSION_SECRET` and `ALLOWED_DEV_ORIGINS` in `.env`, and override the container-oriented database and cover paths for host commands:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d db
 npm ci
 npm run db:generate
 export DATABASE_URL=postgresql://library:library@127.0.0.1:5432/library?schema=public
 export COVER_STORAGE_PATH=./data/covers
+export BOOK_FILE_STORAGE_PATH=./data/books
 npm run db:migrate
 npm run dev
 ```
@@ -119,12 +128,13 @@ npm run kyobo:probe -- "너의 췌장을 먹고 싶어"
 - Shelf tags belong to a library owner and are shared by all libraries that account owns. Editors can assign the owner's tags to books but cannot manage the owner's global tag collection.
 - Library-specific settings retain their existing permissions: statistics are readable by library members, while sharing, ownership, transfer, and audit controls are owner-only.
 - Version 2 library backups preserve book shelf assignments by name but do not contain account-wide display settings. Version 1 backups remain importable; their legacy display block is ignored.
-- General Settings can export and import one versioned JSON backup containing every owned library plus account display preferences, language, and shelf tags. Account backup version 2 preserves language; version 1 remains importable without replacing the importing account's current language. Imports create new libraries without replacing existing collections; account backup files are limited to 50 MB, 100 libraries, and 5,000 books.
+- General Settings can export and import one versioned JSON backup containing every owned library plus account display preferences, language, and shelf tags. Account backup version 2 preserves language; version 1 remains importable without replacing the importing account's current language. Imports create new libraries without replacing existing collections; account backup files are limited to 50 MB, 100 libraries, and 5,000 books. EPUB/PDF binaries and attachment metadata are excluded from JSON and CSV, so restore them only with their matching database and `book_files` volume backup.
 
 ## Security boundaries
 
 - User and administrator credentials and database sessions use separate tables and cookies. A user can never be promoted to administrator.
 - Every library, book, cover, transfer, statistics, and audit request is authorized on the server.
 - Kyobo book and genre URLs are canonical and validated. Covers are downloaded from an allowlisted HTTPS host, signature-checked, and served from protected local storage.
+- EPUB and PDF files are size- and signature-checked, stored under generated keys, and downloadable only by authorized library members.
 - Imports are bounded, validated, previewed, and applied transactionally. Credentials, memberships, sessions, and audit logs are never exported.
 - Kyobo scraping uses an ordinary Chromium session because direct HTTP product requests return an empty CloudFront response in the target environment. It does not use stealth or access-control bypasses.

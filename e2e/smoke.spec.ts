@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 
 test('landing page is usable', async ({ page }) => {
@@ -234,4 +235,69 @@ test('a user can register and receives a default library', async ({ page }) => {
         document.documentElement.clientWidth,
     ),
   ).toBe(true)
+})
+
+test('an owner can manage independent EPUB and PDF files', async ({ page }) => {
+  const suffix = `${Date.now()}-${test.info().project.name}`
+  await page.goto('/register')
+  await page.getByLabel('로그인 ID').fill(`files-${suffix}`)
+  await page.getByLabel('비밀번호').fill('correct-horse-library-staple')
+  await page.getByRole('button', { name: '계속' }).click()
+
+  await page.goto('/search?q=file-test&source=kyobo')
+  const manual = page.locator('#manual-book-fallback')
+  await manual.locator('summary').click()
+  await manual.locator('input[name="title"]').fill(`File test ${suffix}`)
+  await manual.locator('input[name="authors"]').fill('Test Author')
+  await manual
+    .locator('input[name="isbn"]')
+    .fill(`979${String(Date.now()).slice(-10)}`)
+  await manual
+    .locator('input[name="sourceUrl"]')
+    .fill('https://product.kyobobook.co.kr/detail/S000000000001')
+  await manual
+    .locator('textarea[name="genrePaths"]')
+    .fill('Test | https://store.kyobobook.co.kr/category/domestic/01')
+  await manual.locator('button').click()
+
+  await page.getByRole('heading', { name: `File test ${suffix}` }).click()
+  await page.getByLabel('EPUB 파일 선택').setInputFiles({
+    name: 'first.epub',
+    mimeType: 'application/epub+zip',
+    buffer: Buffer.from([0x50, 0x4b, 0x03, 0x04, 1]),
+  })
+  await page.getByRole('button', { name: 'EPUB 업로드' }).click()
+  await expect(page.getByRole('link', { name: 'EPUB 다운로드' })).toHaveText(
+    'first.epub',
+  )
+
+  await page.getByLabel('PDF 파일 선택').setInputFiles({
+    name: 'manual.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.7\nfirst'),
+  })
+  await page.getByRole('button', { name: 'PDF 업로드' }).click()
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('link', { name: 'PDF 다운로드' }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('manual.pdf')
+  expect(await readFile((await download.path())!, 'utf8')).toContain('%PDF-1.7')
+
+  await page.getByLabel('PDF 파일 선택').setInputFiles({
+    name: 'replacement.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.7\nreplacement'),
+  })
+  await page.getByRole('button', { name: 'PDF 교체' }).click()
+  await expect(page.getByRole('link', { name: 'PDF 다운로드' })).toHaveText(
+    'replacement.pdf',
+  )
+  await expect(page.getByRole('link', { name: 'EPUB 다운로드' })).toHaveText(
+    'first.epub',
+  )
+
+  await page.getByRole('button', { name: 'EPUB 삭제' }).click()
+  await expect(page.getByRole('link', { name: 'EPUB 다운로드' })).toHaveCount(0)
+  await expect(page.getByText('업로드된 파일이 없습니다.')).toHaveCount(1)
+  await expect(page.getByRole('link', { name: 'PDF 다운로드' })).toBeVisible()
 })
