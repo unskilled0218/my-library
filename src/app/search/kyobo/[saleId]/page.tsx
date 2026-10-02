@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { addKyoboBookAction } from '@/app/actions'
+import { KyoboSearchMetadata } from '@/components/kyobo-search-metadata'
 import { currentUser } from '@/lib/auth'
 import {
   normalizeSearchQuery,
@@ -12,8 +13,10 @@ import { searchMessages } from '@/lib/i18n/search'
 import { getLanguage } from '@/lib/i18n/server'
 import { getKyoboBook, type KyoboBook } from '@/lib/kyobo'
 import {
+  appendKyoboPreview,
   appendSearchContext,
   buildSearchHref,
+  isAllowedKyoboCoverUrl,
   isKyoboSaleId,
   kyoboPreviewEntries,
   kyoboProductUrl,
@@ -34,19 +37,15 @@ function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
 
-function detailHref(
+export function detailHref(
   saleId: string,
   context: KyoboSearchContext,
   preview: KyoboPreview | null,
   retry = false,
 ) {
   const params = appendSearchContext(new URLSearchParams(), context)
-  if (preview) {
-    kyoboPreviewEntries(preview).forEach(([key, value]) =>
-      params.append(key, value),
-    )
-  }
   if (retry) params.set('retry', Date.now().toString())
+  if (preview) appendKyoboPreview(params, preview)
   return `/search/kyobo/${saleId}?${params}`
 }
 
@@ -119,11 +118,55 @@ export async function KyoboDetails({
   }
 
   const { book } = detail
-  const metadataChanged = Boolean(
+  const normalizeText = (value: string) => value.replace(/\s+/g, ' ').trim()
+  const titleChanged = Boolean(
+    preview && normalizeText(preview.title) !== normalizeText(book.title),
+  )
+  const isbnChanged = Boolean(preview && preview.isbn !== book.isbn)
+  const formatChanged = Boolean(preview && preview.format !== book.format)
+  const authorsChanged = Boolean(
     preview &&
-    (preview.title !== book.title ||
-      preview.isbn !== book.isbn ||
-      preview.format !== book.format),
+    preview.authors.length > 0 &&
+    preview.authors.map(normalizeText).join('|') !==
+      book.authors.map(normalizeText).join('|'),
+  )
+  const previewDescription = preview?.description
+    ? normalizeText(preview.description)
+    : ''
+  const canonicalDescription = normalizeText(book.description)
+  const descriptionContinues = Boolean(
+    preview?.descriptionTruncated &&
+    previewDescription &&
+    canonicalDescription.startsWith(previewDescription),
+  )
+  const descriptionChanged = Boolean(
+    previewDescription &&
+    !descriptionContinues &&
+    previewDescription !== canonicalDescription,
+  )
+  const descriptionToRender = descriptionContinues
+    ? canonicalDescription.slice(previewDescription.length).trim()
+    : book.description
+  const canonicalCover = isAllowedKyoboCoverUrl(book.coverUrl)
+    ? book.coverUrl
+    : null
+  const coverChanged = Boolean(
+    preview?.coverUrl && canonicalCover !== preview.coverUrl,
+  )
+  const metadataChanged =
+    titleChanged ||
+    isbnChanged ||
+    formatChanged ||
+    authorsChanged ||
+    descriptionChanged ||
+    coverChanged
+  const genrePaths = book.genrePaths.filter(
+    (path) =>
+      !(
+        path.length === 1 &&
+        preview?.category &&
+        normalizeText(path[0].name) === normalizeText(preview.category)
+      ),
   )
 
   return (
@@ -138,48 +181,69 @@ export async function KyoboDetails({
           {messages.alreadyExists}
         </p>
       )}
-      <h2 className="mt-4 break-words font-serif text-3xl font-bold">
-        {book.title}
-      </h2>
-      <p className="mt-2 text-sm text-ink/60">
-        {messages.isbnLabel}: {book.isbn} · {messages.formatLabel}:{' '}
-        {common[enumMessages[book.format]]}
-      </p>
+      {metadataChanged && (
+        <p className="mt-4 text-sm font-semibold text-moss">
+          {messages.correctedMetadata}
+        </p>
+      )}
+      {(!preview || titleChanged) && (
+        <h2 className="mt-4 break-words font-serif text-3xl font-bold">
+          {book.title}
+        </h2>
+      )}
+      {(!preview || isbnChanged) && (
+        <p className="mt-2 text-sm text-ink/60">
+          {messages.isbnLabel}: {book.isbn}
+        </p>
+      )}
+      {(!preview || formatChanged) && (
+        <p className="mt-2 text-sm text-ink/60">
+          {messages.formatLabel}: {common[enumMessages[book.format]]}
+        </p>
+      )}
+      {(!preview?.coverUrl || coverChanged) && canonicalCover && (
+        <img
+          className="mt-5 h-44 w-28 object-contain"
+          src={canonicalCover}
+          alt=""
+        />
+      )}
       <div className="mt-5 grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(15rem,0.5fr)]">
         <div className="min-w-0 space-y-5">
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-ink/50">
-              {messages.contributors}
-            </h2>
-            <p className="mt-2">{book.authors.join(', ')}</p>
-          </div>
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-ink/50">
-              {messages.description}
-            </h2>
-            <p className="mt-2 whitespace-pre-wrap leading-7 text-ink/70">
-              {book.description}
-            </p>
-          </div>
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-ink/50">
-              {messages.genres}
-            </h2>
-            <div className="mt-2 space-y-2 text-sm text-ink/70">
-              {book.genrePaths.map((path) => (
-                <p key={path.map((genre) => genre.url).join('|')}>
-                  {path.map((genre) => genre.name).join(' > ')}
-                </p>
-              ))}
+          {(!preview || preview.authors.length === 0 || authorsChanged) && (
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-ink/50">
+                {messages.contributors}
+              </h2>
+              <p className="mt-2">{book.authors.join(', ')}</p>
             </div>
-          </div>
-          {metadataChanged && (
-            <div className="rounded-xl bg-moss/5 p-4 text-sm">
-              <p className="font-semibold">{messages.correctedMetadata}</p>
-              <p className="mt-1 text-ink/60">
-                {messages.isbnLabel}: {book.isbn} · {messages.formatLabel}:{' '}
-                {common[enumMessages[book.format]]}
+          )}
+          {(!preview?.description ||
+            descriptionChanged ||
+            (descriptionContinues && descriptionToRender)) && (
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-ink/50">
+                {descriptionContinues
+                  ? messages.descriptionContinuation
+                  : messages.description}
+              </h2>
+              <p className="mt-2 whitespace-pre-wrap leading-7 text-ink/70">
+                {descriptionToRender}
               </p>
+            </div>
+          )}
+          {genrePaths.length > 0 && (
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-ink/50">
+                {messages.genres}
+              </h2>
+              <div className="mt-2 space-y-2 text-sm text-ink/70">
+                {genrePaths.map((path) => (
+                  <p key={path.map((genre) => genre.url).join('|')}>
+                    {path.map((genre) => genre.name).join(' > ')}
+                  </p>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -308,6 +372,7 @@ export default async function KyoboDetailPage({
                   {messages.isbnLabel}: {preview.isbn} · {messages.formatLabel}:{' '}
                   {common[enumMessages[preview.format]]}
                 </p>
+                <KyoboSearchMetadata value={preview} language={language} />
               </>
             ) : (
               <p className="mt-3 text-ink/60">{messages.directLinkPreview}</p>

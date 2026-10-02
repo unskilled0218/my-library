@@ -1,6 +1,10 @@
 import { chromium } from 'playwright'
 import { load } from 'cheerio'
-import { isKyoboSaleId, kyoboProductUrl } from '@/lib/kyobo-preview'
+import {
+  isAllowedKyoboCoverUrl,
+  isKyoboSaleId,
+  kyoboProductUrl,
+} from '@/lib/kyobo-preview'
 import { normalizeIsbn } from '@/lib/validation'
 
 const SEARCH_URL =
@@ -23,6 +27,17 @@ function fixtureCandidate(): BookCandidate {
     isbn: '9791158887544',
     sourceUrl: kyoboProductUrl('S000009999999'),
     format: 'PHYSICAL',
+    category: 'Fixture Category',
+    publisher: 'Fixture Publisher',
+    publicationYear: 2026,
+    publicationMonth: 9,
+    listPrice: 20_000,
+    salePrice: 18_000,
+    discountPercent: 10,
+    rewardPoints: 900,
+    rating: 4.8,
+    categoryCode: '010101',
+    description: 'Deterministic canonical details loaded after the preview.',
   }
 }
 
@@ -38,6 +53,16 @@ export type BookCandidate = {
   format: 'PHYSICAL' | 'EBOOK'
   coverUrl?: string
   description?: string
+  category?: string
+  publisher?: string
+  publicationYear?: number
+  publicationMonth?: number
+  listPrice?: number
+  salePrice?: number
+  discountPercent?: number
+  rewardPoints?: number
+  rating?: number
+  categoryCode?: string
 }
 
 export type KyoboBook = Omit<BookCandidate, 'coverUrl' | 'description'> & {
@@ -48,42 +73,88 @@ export type KyoboBook = Omit<BookCandidate, 'coverUrl' | 'description'> & {
 }
 
 type SearchDocument = {
-  CMDTCODE?: string
-  CMDT_NAME?: string
-  SALE_CMDTID?: string
-  SALE_CMDT_DVSN_CODE_SUB?: string
-  TOT_RELATE_HTML_LIST?: string
+  CMDTCODE?: unknown
+  CMDT_NAME?: unknown
+  SALE_CMDTID?: unknown
+  SALE_CMDT_DVSN_CODE_SUB?: unknown
+  TOT_RELATE_HTML_LIST?: unknown
 }
 
 const detailCache = new Map<string, { expiresAt: number; value: KyoboBook }>()
 
-function mapDocument(document: SearchDocument): BookCandidate | null {
-  if (
-    !document.CMDTCODE ||
-    !document.CMDT_NAME ||
-    !document.SALE_CMDTID ||
-    !isKyoboSaleId(document.SALE_CMDTID)
+function boundedText(value: unknown, maximum: number) {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  return normalized && normalized.length <= maximum ? normalized : undefined
+}
+
+function boundedInteger(value: unknown, minimum: number, maximum: number) {
+  if (typeof value !== 'string' || !/^\d+(?:\.0+)?$/.test(value))
+    return undefined
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum
+    ? parsed
+    : undefined
+}
+
+function boundedNumber(value: unknown, minimum: number, maximum: number) {
+  if (typeof value !== 'string' || !/^\d+(?:\.\d+)?$/.test(value))
+    return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= minimum && parsed <= maximum
+    ? parsed
+    : undefined
+}
+
+function mapDocument(input: unknown): BookCandidate | null {
+  if (!input || typeof input !== 'object') return null
+  const document = input as SearchDocument
+  const title = boundedText(document.CMDT_NAME, 240)
+  const isbn = normalizeIsbn(
+    typeof document.CMDTCODE === 'string' ? document.CMDTCODE : '',
   )
+  const saleId =
+    typeof document.SALE_CMDTID === 'string' ? document.SALE_CMDTID : undefined
+  if (!title || !/^(?:\d{10}|\d{13})$/.test(isbn) || !isKyoboSaleId(saleId))
     return null
-  const fields = document.TOT_RELATE_HTML_LIST?.split('$@') ?? []
+  const fields =
+    typeof document.TOT_RELATE_HTML_LIST === 'string'
+      ? document.TOT_RELATE_HTML_LIST.split('$@')
+      : []
+  const author = boundedText(fields[3], 240)
+  const publicationYear = boundedInteger(
+    fields[5],
+    1000,
+    new Date().getFullYear() + 2,
+  )
   return {
-    saleId: document.SALE_CMDTID,
-    title: document.CMDT_NAME.trim(),
-    authors: fields[3]?.trim() ? [fields[3].trim()] : [],
-    isbn: normalizeIsbn(document.CMDTCODE),
-    sourceUrl: kyoboProductUrl(document.SALE_CMDTID),
-    format: document.SALE_CMDT_DVSN_CODE_SUB === 'EBK' ? 'EBOOK' : 'PHYSICAL',
-    coverUrl: fields.find((field) =>
-      field.startsWith('https://contents.kyobobook.co.kr/'),
-    ),
-    description: fields.find((field) => field.length > 100),
+    saleId,
+    title,
+    authors: author ? [author] : [],
+    isbn,
+    sourceUrl: kyoboProductUrl(saleId),
+    format: saleId.startsWith('E') ? 'EBOOK' : 'PHYSICAL',
+    coverUrl: isAllowedKyoboCoverUrl(fields[14]) ? fields[14] : undefined,
+    description: boundedText(fields[21], 4_000),
+    category: boundedText(fields[1], 120),
+    publisher: boundedText(fields[4], 120),
+    publicationYear,
+    publicationMonth: publicationYear
+      ? boundedInteger(fields[6], 1, 12)
+      : undefined,
+    listPrice: boundedInteger(fields[7], 0, 100_000_000),
+    salePrice: boundedInteger(fields[8], 0, 100_000_000),
+    discountPercent: boundedNumber(fields[9], 0, 100),
+    rewardPoints: boundedInteger(fields[10], 0, 100_000_000),
+    rating: boundedNumber(fields[20], 0, 5),
+    categoryCode: /^\d{1,12}$/.test(fields[26] ?? '') ? fields[26] : undefined,
   }
 }
 
 export function parseSearchResponse(body: string, keyword: string) {
   const payload = JSON.parse(body) as {
     resultCode?: string
-    data?: { returnCode?: number; resultDocuments?: SearchDocument[] }
+    data?: { returnCode?: number; resultDocuments?: unknown[] }
   }
   if (
     payload.resultCode !== '200' ||
@@ -92,15 +163,19 @@ export function parseSearchResponse(body: string, keyword: string) {
   ) {
     throw new Error('Kyobo returned an invalid search response')
   }
-  const candidates = payload.data.resultDocuments
+  const mapped = payload.data.resultDocuments
     .map(mapDocument)
     .filter((item): item is BookCandidate => Boolean(item))
-  if (
-    /^\d{10,13}$/.test(normalizeIsbn(keyword)) &&
-    candidates[0]?.isbn !== normalizeIsbn(keyword)
-  )
-    return []
-  return candidates
+  const uniqueCandidates = new Map<string, BookCandidate>()
+  mapped.forEach((candidate) => {
+    if (!uniqueCandidates.has(candidate.saleId))
+      uniqueCandidates.set(candidate.saleId, candidate)
+  })
+  const candidates = Array.from(uniqueCandidates.values())
+  const normalizedKeyword = normalizeIsbn(keyword)
+  return /^(?:\d{10}|\d{13})$/.test(normalizedKeyword)
+    ? candidates.filter((candidate) => candidate.isbn === normalizedKeyword)
+    : candidates
 }
 
 export function parseProductHtml(html: string, saleId: string): KyoboBook {

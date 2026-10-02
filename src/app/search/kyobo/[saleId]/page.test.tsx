@@ -4,9 +4,11 @@ import { commonMessages } from '@/lib/i18n/common'
 import { searchMessages } from '@/lib/i18n/search'
 import type { KyoboBook } from '@/lib/kyobo'
 import {
+  detailHref,
   KyoboDetails,
   KyoboDetailsLoading,
 } from '@/app/search/kyobo/[saleId]/page'
+import { MAX_KYOBO_PREVIEW_QUERY_LENGTH } from '@/lib/kyobo-preview'
 
 vi.mock('@/app/actions', () => ({ addKyoboBookAction: vi.fn() }))
 
@@ -90,6 +92,106 @@ describe('progressive Kyobo details', () => {
     expect(html).toContain('Canonical Dune')
     expect(html).toContain('9791158887544')
     expect(html).toContain('Format: Physical')
+  })
+
+  it('does not repeat canonical metadata that matches the preview', async () => {
+    const element = await KyoboDetails({
+      ...baseProps,
+      preview: {
+        title: book.title,
+        authors: book.authors,
+        isbn: book.isbn,
+        format: book.format,
+        coverUrl: null,
+        category: 'Science fiction',
+        description: book.description,
+      },
+      result: Promise.resolve({ book, error: false }),
+      signedIn: false,
+      destinations: [],
+    })
+    const html = renderToStaticMarkup(element)
+
+    expect(html).not.toContain('Canonical Dune')
+    expect(html).not.toContain('Frank Herbert')
+    expect(html).not.toContain('Canonical product description')
+    expect(html).not.toContain('9791158887544')
+    expect(html).not.toContain('Science fiction')
+    expect(html).not.toContain('Verified on the Kyobo product page')
+    expect(html).toContain('Sign in to add this book')
+  })
+
+  it('treats missing preview authors as enrichment rather than correction', async () => {
+    const element = await KyoboDetails({
+      ...baseProps,
+      preview: {
+        title: book.title,
+        authors: [],
+        isbn: book.isbn,
+        format: book.format,
+        coverUrl: null,
+        description: book.description,
+      },
+      result: Promise.resolve({ book, error: false }),
+      signedIn: false,
+      destinations: [],
+    })
+    const html = renderToStaticMarkup(element)
+
+    expect(html).toContain('Frank Herbert')
+    expect(html).not.toContain('Verified on the Kyobo product page')
+  })
+
+  it('renders only the continuation of a matching truncated description', async () => {
+    const prefix = 'A'.repeat(300)
+    const enrichedBook = {
+      ...book,
+      description: `${prefix} New canonical ending.`,
+    }
+    const element = await KyoboDetails({
+      ...baseProps,
+      preview: {
+        title: book.title,
+        authors: book.authors,
+        isbn: book.isbn,
+        format: book.format,
+        coverUrl: null,
+        description: prefix,
+        descriptionTruncated: true,
+      },
+      result: Promise.resolve({ book: enrichedBook, error: false }),
+      signedIn: false,
+      destinations: [],
+    })
+    const html = renderToStaticMarkup(element)
+
+    expect(html).toContain('Description continued')
+    expect(html).toContain('New canonical ending.')
+    expect(html).not.toContain(prefix)
+    expect(html).not.toContain('Verified on the Kyobo product page')
+  })
+
+  it('keeps retry URLs within the preview budget', () => {
+    const href = detailHref(
+      book.saleId,
+      { q: '긴 검색어'.repeat(15), source: 'kyobo' },
+      {
+        title: '긴 제목'.repeat(30),
+        authors: Array.from({ length: 8 }, () => '긴 저자'.repeat(20)),
+        isbn: book.isbn,
+        format: book.format,
+        coverUrl: null,
+        description: '긴 책 소개'.repeat(100),
+      },
+      true,
+    )
+    const url = new URL(href, 'https://example.test')
+
+    expect(url.search.slice(1).length).toBeLessThanOrEqual(
+      MAX_KYOBO_PREVIEW_QUERY_LENGTH,
+    )
+    expect(url.searchParams.get('retry')).toBeTruthy()
+    expect(url.searchParams.get('isbn')).toBe(book.isbn)
   })
 
   it('keeps failure navigation usable without rendering an add form', async () => {

@@ -59,7 +59,7 @@ describe('addKyoboBookAction', () => {
       sourceUrl: 'https://product.kyobobook.co.kr/detail/S000001772370',
       format: 'PHYSICAL',
       coverUrl: null,
-      description: '',
+      description: 'Canonical description',
       genrePaths: [],
     })
   })
@@ -75,6 +75,10 @@ describe('addKyoboBookAction', () => {
     form.append('author', 'Untrusted author')
     form.set('isbn', '9791158887544')
     form.set('format', 'PHYSICAL')
+    form.set('category', 'Untrusted category')
+    form.set('publisher', 'Untrusted publisher')
+    form.set('salePrice', '18000')
+    form.set('description', 'Untrusted description')
 
     await expect(addKyoboBookAction(form)).rejects.toThrow('REDIRECT:')
 
@@ -91,7 +95,7 @@ describe('addKyoboBookAction', () => {
       select: { id: true },
     })
     expect(mocks.redirect).toHaveBeenCalledWith(
-      '/search/kyobo/S000001772370?q=Dune&source=all&libraryId=library-1&title=Untrusted+title&author=Untrusted+author&isbn=9791158887544&format=PHYSICAL&status=already-exists',
+      '/search/kyobo/S000001772370?q=Dune&source=all&libraryId=library-1&title=Untrusted+title&author=Untrusted+author&isbn=9791158887544&format=PHYSICAL&category=Untrusted+category&publisher=Untrusted+publisher&salePrice=18000&description=Untrusted+description&status=already-exists',
     )
     expect(mocks.downloadCover).not.toHaveBeenCalled()
   })
@@ -107,6 +111,8 @@ describe('addKyoboBookAction', () => {
     form.append('author', 'A forged author')
     form.set('isbn', '1234567890')
     form.set('format', 'EBOOK')
+    form.set('description', 'A forged description')
+    form.set('salePrice', '1')
 
     await expect(addKyoboBookAction(form)).rejects.toThrow('REDIRECT:')
 
@@ -118,6 +124,7 @@ describe('addKyoboBookAction', () => {
           authors: ['Frank Herbert'],
           isbn13: '9791158887544',
           format: 'PHYSICAL',
+          description: 'Canonical description',
         }),
       }),
     )
