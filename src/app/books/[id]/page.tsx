@@ -84,15 +84,6 @@ export default async function BookPage({
               </span>
             ))}
           </div>
-          <BookFilesPanel
-            bookId={book.id}
-            files={book.files.map(({ type, originalName, size }) => ({
-              type,
-              originalName,
-              size,
-            }))}
-            canWrite={canWrite}
-          />
           {canWrite && (
             <form
               id={`book-edit-form-${id}`}
@@ -188,6 +179,15 @@ export default async function BookPage({
               </button>
             </form>
           )}
+          <BookFilesPanel
+            bookId={book.id}
+            files={book.files.map(({ type, originalName, size }) => ({
+              type,
+              originalName,
+              size,
+            }))}
+            canWrite={canWrite}
+          />
         </div>
       </div>
       {canWrite && (
