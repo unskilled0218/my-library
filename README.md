@@ -44,18 +44,10 @@ To roll back application code, set `MY_LIBRARY_VERSION` to the previous immutabl
 
 ## Local development
 
-To build the current checkout with `Dockerfile` and run the complete app/database stack without pulling the registry image:
+Use the development override to expose only PostgreSQL from Compose, then run Next.js on the host. Keep `SESSION_SECRET` and `ALLOWED_DEV_ORIGINS` in `.env`, and override the container-oriented database and cover paths for host commands:
 
 ```bash
-docker compose -f docker-compose.dev.yml up --build
-```
-
-Open `http://localhost:3000`. The local stack applies pending Prisma migrations before starting the app and persists PostgreSQL, covers, and EPUB/PDF files in its own named volumes.
-
-Use the development Compose file to expose only PostgreSQL, then run Next.js on the host. Keep `SESSION_SECRET` and `ALLOWED_DEV_ORIGINS` in `.env`, and override the container-oriented database and cover paths for host commands:
-
-```bash
-docker compose -f docker-compose.dev.yml up -d db
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
 npm ci
 npm run db:generate
 export DATABASE_URL=postgresql://library:library@127.0.0.1:5432/library?schema=public
