@@ -27,7 +27,7 @@ describe('IsbnScanner', () => {
 
     const close = screen.getByRole('button', { name: 'Close camera' })
     expect(document.querySelector('video')).toHaveClass(
-      'h-[clamp(8rem,32dvh,12rem)]',
+      'h-[clamp(6rem,20dvh,9rem)]',
     )
     expect(close).toHaveClass('min-h-10')
     expect(close).not.toHaveTextContent('Close camera')

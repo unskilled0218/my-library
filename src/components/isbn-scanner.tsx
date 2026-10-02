@@ -61,7 +61,7 @@ export function IsbnScanner({
     <div id="isbn-scanner" className="space-y-3">
       <video
         ref={video}
-        className="h-[clamp(8rem,32dvh,12rem)] w-full rounded-xl bg-black object-cover"
+        className="h-[clamp(6rem,20dvh,9rem)] w-full rounded-xl bg-black object-cover"
         muted
         playsInline
       />

@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { CameraIcon, SearchIcon } from '@/components/icons'
 import { IsbnScanner } from '@/components/isbn-scanner'
@@ -98,30 +99,35 @@ export function HeaderSearch({ authenticated }: { authenticated: boolean }) {
           <CameraIcon />
         </button>
       </form>
-      {scannerOpen && (
-        <div
-          id="header-scanner-dialog"
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-ink/60 p-3"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="header-scanner-title"
-        >
-          <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-paper p-4 shadow-card">
-            <h2
-              id="header-scanner-title"
-              className="font-serif text-2xl font-bold"
+      {scannerOpen &&
+        createPortal(
+          <div
+            id="header-scanner-dialog"
+            className="fixed inset-x-0 top-0 z-50 flex h-[100dvh] overflow-y-auto bg-ink/60 p-3"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="header-scanner-title"
+          >
+            <div
+              id="header-scanner-panel"
+              className="mx-auto my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-paper p-4 shadow-card"
             >
-              {messages.scanTitle}
-            </h2>
-            <div className="mt-3">
-              <IsbnScanner
-                onDetected={handleDetected}
-                onClose={() => setScannerOpen(false)}
-              />
+              <h2
+                id="header-scanner-title"
+                className="font-serif text-2xl font-bold"
+              >
+                {messages.scanTitle}
+              </h2>
+              <div className="mt-3">
+                <IsbnScanner
+                  onDetected={handleDetected}
+                  onClose={() => setScannerOpen(false)}
+                />
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   )
 }
