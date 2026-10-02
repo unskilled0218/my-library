@@ -25,10 +25,14 @@ import {
   tokenHash,
   createUser,
 } from '@/lib/auth'
-import { downloadCover, removeCover } from '@/lib/covers'
+import { downloadCover, removeCover, saveCoverData } from '@/lib/covers'
 import { removeBookFile } from '@/lib/book-files'
 import { db } from '@/lib/db'
 import { upsertGenrePaths } from '@/lib/genres'
+import {
+  folderDescendantIds,
+  normalizeFolderTitle,
+} from '@/lib/library-folders'
 import { getKyoboBook } from '@/lib/kyobo'
 import { setLanguageCookie } from '@/lib/i18n/cookie'
 import { assertRateLimit } from '@/lib/rate-limit'
@@ -49,6 +53,43 @@ async function removeBookFiles(keys: string[]) {
       ),
     ),
   )
+}
+
+async function removeCovers(keys: (string | null | undefined)[]) {
+  await Promise.all(
+    keys.map((key) =>
+      removeCover(key).catch((error) =>
+        console.error('Cover cleanup failed', error),
+      ),
+    ),
+  )
+}
+
+const libraryFolderUrl = (libraryId: string, folderId?: string | null) =>
+  folderId
+    ? `/libraries/${libraryId}?folder=${encodeURIComponent(folderId)}`
+    : `/libraries/${libraryId}`
+
+async function folderCoverInput(form: FormData, libraryId: string) {
+  const mode = value(form, 'coverMode')
+  if (mode === 'book') {
+    const coverBookId = value(form, 'coverBookId')
+    const book = await db.book.findFirst({
+      where: { id: coverBookId, libraryId, coverKey: { not: null } },
+      select: { id: true },
+    })
+    if (!book) throw new Error('Invalid folder cover book')
+    return { coverBookId: book.id, customCover: null }
+  }
+  if (mode === 'upload') {
+    const file = form.get('customCover')
+    if (file instanceof File && file.size)
+      return {
+        coverBookId: null,
+        customCover: await saveCoverData(Buffer.from(await file.arrayBuffer())),
+      }
+  }
+  return { coverBookId: null, customCover: null }
 }
 
 export async function registerAction(form: FormData) {
@@ -199,15 +240,192 @@ export async function updateLibraryAction(form: FormData) {
   revalidatePath('/libraries')
 }
 
+export async function createFolderAction(form: FormData) {
+  const user = await requireUser()
+  const libraryId = value(form, 'libraryId')
+  const parentId = value(form, 'parentId') || null
+  const title = normalizeFolderTitle(value(form, 'title'))
+  await requireLibraryAccess(user, libraryId, 'WRITE')
+  if (
+    parentId &&
+    !(await db.libraryFolder.findFirst({ where: { id: parentId, libraryId } }))
+  )
+    throw new Error('Invalid parent folder')
+  if (
+    await db.libraryFolder.findFirst({
+      where: { libraryId, parentId, title },
+      select: { id: true },
+    })
+  )
+    throw new Error('A folder with this title already exists here')
+
+  const cover = await folderCoverInput(form, libraryId)
+  let folder: { id: string }
+  try {
+    folder = await db.$transaction(async (tx) => {
+      const created = await tx.libraryFolder.create({
+        data: {
+          libraryId,
+          parentId,
+          title,
+          coverBookId: cover.coverBookId,
+          customCoverKey: cover.customCover?.key,
+          customCoverMime: cover.customCover?.mime,
+          customCoverWidth: cover.customCover?.width,
+          customCoverHeight: cover.customCover?.height,
+        },
+      })
+      await tx.auditLog.create({
+        data: {
+          actorType: ActorType.USER,
+          actorId: user.id,
+          action: 'FOLDER_CREATED',
+          targetType: 'LibraryFolder',
+          targetId: created.id,
+          libraryId,
+          summary: { title, parentId },
+        },
+      })
+      return created
+    })
+  } catch (error) {
+    await removeCover(cover.customCover?.key)
+    throw error
+  }
+  revalidatePath(`/libraries/${libraryId}`)
+  redirect(libraryFolderUrl(libraryId, folder.id))
+}
+
+export async function updateFolderAction(form: FormData) {
+  const user = await requireUser()
+  const folderId = value(form, 'folderId')
+  const folder = await db.libraryFolder.findUnique({ where: { id: folderId } })
+  if (!folder) throw new Error('Folder not found')
+  await requireLibraryAccess(user, folder.libraryId, 'WRITE')
+  const title = normalizeFolderTitle(value(form, 'title'))
+  const parentId = value(form, 'parentId') || null
+  const cover = await folderCoverInput(form, folder.libraryId)
+  const mode = value(form, 'coverMode')
+  const keepCustom =
+    mode === 'upload' && !cover.customCover && Boolean(folder.customCoverKey)
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "LibraryFolder" WHERE "libraryId" = ${folder.libraryId} ORDER BY "id" FOR UPDATE`
+      const folders = await tx.libraryFolder.findMany({
+        where: { libraryId: folder.libraryId },
+        select: { id: true, title: true, parentId: true },
+      })
+      if (parentId) {
+        if (!folders.some(({ id }) => id === parentId))
+          throw new Error('Invalid parent folder')
+        if (
+          parentId === folderId ||
+          folderDescendantIds(folders, folderId).has(parentId)
+        )
+          throw new Error(
+            'A folder cannot be moved into itself or a descendant',
+          )
+      }
+      if (
+        folders.some(
+          (candidate) =>
+            candidate.id !== folderId &&
+            candidate.parentId === parentId &&
+            candidate.title === title,
+        )
+      )
+        throw new Error('A folder with this title already exists here')
+      await tx.libraryFolder.update({
+        where: { id: folderId },
+        data: {
+          title,
+          parentId,
+          coverBookId: cover.coverBookId,
+          customCoverKey: keepCustom
+            ? folder.customCoverKey
+            : (cover.customCover?.key ?? null),
+          customCoverMime: keepCustom
+            ? folder.customCoverMime
+            : (cover.customCover?.mime ?? null),
+          customCoverWidth: keepCustom
+            ? folder.customCoverWidth
+            : (cover.customCover?.width ?? null),
+          customCoverHeight: keepCustom
+            ? folder.customCoverHeight
+            : (cover.customCover?.height ?? null),
+        },
+      })
+      await tx.auditLog.create({
+        data: {
+          actorType: ActorType.USER,
+          actorId: user.id,
+          action: 'FOLDER_UPDATED',
+          targetType: 'LibraryFolder',
+          targetId: folderId,
+          libraryId: folder.libraryId,
+          summary: { title, parentId, coverMode: mode },
+        },
+      })
+    })
+  } catch (error) {
+    await removeCover(cover.customCover?.key)
+    throw error
+  }
+  if (
+    folder.customCoverKey &&
+    !keepCustom &&
+    folder.customCoverKey !== cover.customCover?.key
+  )
+    await removeCovers([folder.customCoverKey])
+  revalidatePath(`/libraries/${folder.libraryId}`)
+  redirect(libraryFolderUrl(folder.libraryId, folderId))
+}
+
+export async function deleteFolderAction(form: FormData) {
+  const user = await requireUser()
+  const folderId = value(form, 'folderId')
+  const folder = await db.libraryFolder.findUnique({ where: { id: folderId } })
+  if (!folder) throw new Error('Folder not found')
+  await requireLibraryAccess(user, folder.libraryId, 'WRITE')
+  await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "LibraryFolder" WHERE "id" = ${folderId} FOR UPDATE`
+    const [children, books] = await Promise.all([
+      tx.libraryFolder.count({ where: { parentId: folderId } }),
+      tx.book.count({ where: { folderId } }),
+    ])
+    if (children || books)
+      throw new Error('Folder must be empty before deletion')
+    await tx.auditLog.create({
+      data: {
+        actorType: ActorType.USER,
+        actorId: user.id,
+        action: 'FOLDER_DELETED',
+        targetType: 'LibraryFolder',
+        targetId: folderId,
+        libraryId: folder.libraryId,
+        summary: { title: folder.title },
+      },
+    })
+    await tx.libraryFolder.delete({ where: { id: folderId } })
+  })
+  await removeCovers([folder.customCoverKey])
+  revalidatePath(`/libraries/${folder.libraryId}`)
+  redirect(libraryFolderUrl(folder.libraryId, folder.parentId))
+}
+
 export async function deleteLibraryAction(form: FormData) {
   const user = await requireUser()
   const libraryId = value(form, 'libraryId')
   await requireLibraryAccess(user, libraryId, 'OWNER')
-  const books = await db.$transaction(async (tx) => {
+  const deleting = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "Book" WHERE "libraryId" = ${libraryId} FOR UPDATE`
-    const deleting = await tx.book.findMany({
+    const books = await tx.book.findMany({
       where: { libraryId },
       select: { coverKey: true, files: { select: { storageKey: true } } },
+    })
+    const folders = await tx.libraryFolder.findMany({
+      where: { libraryId },
+      select: { customCoverKey: true },
     })
     await tx.auditLog.create({
       data: {
@@ -220,12 +438,17 @@ export async function deleteLibraryAction(form: FormData) {
         summary: {},
       },
     })
+    await tx.book.deleteMany({ where: { libraryId } })
+    await tx.libraryFolder.deleteMany({ where: { libraryId } })
     await tx.library.delete({ where: { id: libraryId } })
-    return deleting
+    return { books, folders }
   })
-  await Promise.all(books.map((book) => removeCover(book.coverKey)))
+  await removeCovers([
+    ...deleting.books.map((book) => book.coverKey),
+    ...deleting.folders.map((folder) => folder.customCoverKey),
+  ])
   await removeBookFiles(
-    books.flatMap((book) => book.files.map((file) => file.storageKey)),
+    deleting.books.flatMap((book) => book.files.map((file) => file.storageKey)),
   )
   redirect('/libraries')
 }
@@ -531,6 +754,7 @@ export async function updateBookAction(form: FormData) {
     format === BookFormat.PHYSICAL && value(form, 'locationTagId')
       ? value(form, 'locationTagId')
       : null
+  const folderId = value(form, 'folderId') || null
   const library = await db.library.findUniqueOrThrow({
     where: { id: libraryId },
     select: { ownerId: true },
@@ -542,6 +766,14 @@ export async function updateBookAction(form: FormData) {
     }))
   )
     throw new Error('Invalid location')
+  if (
+    folderId &&
+    !(await db.libraryFolder.findFirst({
+      where: { id: folderId, libraryId },
+      select: { id: true },
+    }))
+  )
+    throw new Error('Invalid folder')
   const startedInput = value(form, 'readingStartedAt')
   const finishedInput = value(form, 'readingFinishedAt')
   const readingStartedAt =
@@ -562,26 +794,45 @@ export async function updateBookAction(form: FormData) {
     readingFinishedAt < readingStartedAt
   )
     throw new Error('Finish date cannot be before start date')
-  await db.book.update({
-    where: { id: bookId },
-    data: {
-      title: value(form, 'title').slice(0, 300),
-      authors: value(form, 'authors')
-        .split(',')
-        .map((author) => author.trim())
-        .filter(Boolean),
-      comment: value(form, 'comment').slice(0, 10_000),
-      ownershipState:
-        value(form, 'ownershipState') === 'DONT_HAVE'
-          ? OwnershipState.DONT_HAVE
-          : OwnershipState.HAVE,
-      format,
-      readingState,
-      readingStartedAt,
-      readingFinishedAt,
-      rating,
-      locationTagId,
-    },
+  await db.$transaction(async (tx) => {
+    const current = await tx.book.findUniqueOrThrow({
+      where: { id: bookId },
+      select: { folderId: true },
+    })
+    await tx.book.update({
+      where: { id: bookId },
+      data: {
+        title: value(form, 'title').slice(0, 300),
+        authors: value(form, 'authors')
+          .split(',')
+          .map((author) => author.trim())
+          .filter(Boolean),
+        comment: value(form, 'comment').slice(0, 10_000),
+        ownershipState:
+          value(form, 'ownershipState') === 'DONT_HAVE'
+            ? OwnershipState.DONT_HAVE
+            : OwnershipState.HAVE,
+        format,
+        readingState,
+        readingStartedAt,
+        readingFinishedAt,
+        rating,
+        locationTagId,
+        folderId,
+      },
+    })
+    if (current.folderId !== folderId)
+      await tx.auditLog.create({
+        data: {
+          actorType: ActorType.USER,
+          actorId: user.id,
+          action: 'BOOK_FOLDER_CHANGED',
+          targetType: 'Book',
+          targetId: bookId,
+          libraryId,
+          summary: { fromFolderId: current.folderId, toFolderId: folderId },
+        },
+      })
   })
   revalidatePath(`/libraries/${libraryId}`)
   revalidatePath(`/books/${bookId}`)

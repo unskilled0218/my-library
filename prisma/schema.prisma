@@ -114,9 +114,33 @@ model Library {
   owner       User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   members     LibraryMember[]
   books       Book[]
+  folders     LibraryFolder[]
   auditLogs   AuditLog[]
 
   @@index([ownerId])
+}
+
+model LibraryFolder {
+  id                String          @id @default(cuid())
+  title             String
+  customCoverKey    String?         @unique
+  customCoverMime   String?
+  customCoverWidth  Int?
+  customCoverHeight Int?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  libraryId         String
+  parentId          String?
+  coverBookId       String?
+  library           Library         @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  parent             LibraryFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children           LibraryFolder[] @relation("FolderTree")
+  books              Book[]          @relation("FolderBooks")
+  coverBook          Book?           @relation("FolderCoverBook", fields: [coverBookId], references: [id], onDelete: SetNull)
+
+  @@unique([parentId, title])
+  @@index([libraryId, parentId])
+  @@index([coverBookId])
 }
 
 model LibraryMember {
@@ -184,14 +208,18 @@ model Book {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   libraryId         String
+  folderId          String?
   locationTagId     String?
   library           Library        @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  folder            LibraryFolder? @relation("FolderBooks", fields: [folderId], references: [id], onDelete: Restrict)
+  coverForFolders   LibraryFolder[] @relation("FolderCoverBook")
   locationTag       LocationTag?   @relation(fields: [locationTagId], references: [id], onDelete: Restrict)
   genres            BookGenre[]
   files             BookFile[]
 
   @@index([libraryId, title])
   @@index([libraryId, isbn13])
+  @@index([folderId])
   @@index([locationTagId])
 }
 

@@ -1,6 +1,6 @@
 # My Library
 
-A responsive personal book-management service for private and shared libraries. It supports Kyobo search/import, hierarchical genres, local cover and EPUB/PDF storage, reading history, backups, statistics, and a separate administrator realm.
+A responsive personal book-management service for private and shared libraries. It supports Kyobo search/import, nested library folders, hierarchical genres, local cover and EPUB/PDF storage, reading history, backups, statistics, and a separate administrator realm.
 
 ## Languages
 
@@ -17,7 +17,7 @@ The Docker host must trust the certificate authority that issued the `git.lan` c
 
 1. Run `docker login git.lan` when the package is private.
 2. Copy `.env.example` to `.env` and replace `SESSION_SECRET` with at least 32 random characters. Single-quote literal secret values containing `$` so Compose does not interpolate them.
-3. Optionally set `MY_LIBRARY_VERSION` to an immutable tag such as `v0.5.0`. It defaults to `latest` when omitted.
+3. Optionally set `MY_LIBRARY_VERSION` to an immutable tag such as `v0.7.0`. It defaults to `latest` when omitted.
 4. Optionally set both `ADMIN_ID` and `ADMIN_PASSWORD` to create the first administrator non-interactively. `ADMIN_PASSWORD` must be longer than 12 characters.
 5. Run `docker compose pull` followed by `docker compose up -d`.
 6. Wait for `docker compose ps` to report the app healthy, then open `http://localhost:3000` or request `http://localhost:3000/api/health`.
@@ -119,13 +119,15 @@ npm run kyobo:probe -- "너의 췌장을 먹고 싶어"
 - Display preferences belong to the signed-in user and apply when that user views any owned or shared library.
 - Shelf tags belong to a library owner and are shared by all libraries that account owns. Editors can assign the owner's tags to books but cannot manage the owner's global tag collection.
 - Library-specific settings retain their existing permissions: statistics are readable by library members, while sharing, ownership, transfer, and audit controls are owner-only.
-- Version 2 library backups preserve book shelf assignments by name but do not contain account-wide display settings. Version 1 backups remain importable; their legacy display block is ignored.
-- General Settings can export and import one versioned JSON backup containing every owned library plus account display preferences, language, and shelf tags. Account backup version 2 preserves language; version 1 remains importable without replacing the importing account's current language. Imports create new libraries without replacing existing collections; account backup files are limited to 50 MB, 100 libraries, and 5,000 books. EPUB/PDF binaries and attachment metadata are excluded from JSON and CSV, so restore them only with their matching database and `book_files` volume backup.
+- Library folders can contain books and more folders. Owners and editors can manage folders and move books; viewers can browse them. Folder covers may reference a book cover or use an uploaded JPEG, PNG, or WebP image in the existing protected cover volume.
+- Version 3 library backups preserve folder trees, book assignments, book-derived folder covers, and uploaded folder covers. Version 1 and 2 backups remain importable with their books at library root. CSV preserves escaped folder paths but intentionally omits folder cover images.
+- General Settings can export and import one versioned JSON backup containing every owned library plus account display preferences, language, shelf tags, and folder organization. Imports create new libraries without replacing existing collections; account backup files are limited to 50 MB, 100 libraries, 5,000 books, and 5,000 folders. EPUB/PDF binaries and attachment metadata are excluded from JSON and CSV, so restore them only with their matching database and `book_files` volume backup.
 
 ## Security boundaries
 
 - User and administrator credentials and database sessions use separate tables and cookies. A user can never be promoted to administrator.
 - Every library, book, cover, transfer, statistics, and audit request is authorized on the server.
+- Folder hierarchy mutations validate library ownership, sibling uniqueness, and parent cycles; uploaded folder covers are served only to authorized library members.
 - Kyobo book and genre URLs are canonical and validated. Covers are downloaded from an allowlisted HTTPS host, signature-checked, and served from protected local storage.
 - EPUB and PDF files are size- and signature-checked, stored under generated keys, and downloadable only by authorized library members.
 - Imports are bounded, validated, previewed, and applied transactionally. Credentials, memberships, sessions, and audit logs are never exported.

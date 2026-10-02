@@ -6,6 +6,9 @@ const mocks = vi.hoisted(() => ({
   requireLibraryAccess: vi.fn(),
   bookFind: vi.fn(),
   booksFind: vi.fn(),
+  foldersFind: vi.fn(),
+  booksDeleteMany: vi.fn(),
+  foldersDeleteMany: vi.fn(),
   bookDelete: vi.fn(),
   libraryDelete: vi.fn(),
   auditCreate: vi.fn(),
@@ -31,6 +34,7 @@ vi.mock('@/lib/access', () => ({
 vi.mock('@/lib/covers', () => ({
   downloadCover: vi.fn(),
   removeCover: mocks.removeCover,
+  saveCoverData: vi.fn(),
 }))
 vi.mock('@/lib/book-files', () => ({
   removeBookFile: mocks.removeBookFile,
@@ -52,6 +56,11 @@ vi.mock('@/lib/db', () => ({
           findUniqueOrThrow: mocks.bookFind,
           findMany: mocks.booksFind,
           delete: mocks.bookDelete,
+          deleteMany: mocks.booksDeleteMany,
+        },
+        libraryFolder: {
+          findMany: mocks.foldersFind,
+          deleteMany: mocks.foldersDeleteMany,
         },
         library: { delete: mocks.libraryDelete },
       }),
@@ -103,6 +112,10 @@ describe('book file deletion cleanup', () => {
       },
       { coverKey: 'two.jpg', files: [{ storageKey: 'two.pdf' }] },
     ])
+    mocks.foldersFind.mockResolvedValue([
+      { customCoverKey: 'folder.jpg' },
+      { customCoverKey: null },
+    ])
     const form = new FormData()
     form.set('libraryId', 'library-1')
 
@@ -115,5 +128,6 @@ describe('book file deletion cleanup', () => {
       'one.pdf',
       'two.pdf',
     ])
+    expect(mocks.removeCover).toHaveBeenCalledWith('folder.jpg')
   })
 })

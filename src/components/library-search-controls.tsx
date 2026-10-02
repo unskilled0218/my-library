@@ -12,6 +12,7 @@ type Option = {
 }
 
 type SearchQuery = {
+  folder?: string
   q?: string
   reading?: string
   format?: string
@@ -36,6 +37,9 @@ export function LibrarySearchControls({
 
   return (
     <form id="library-filters" className="panel mt-8">
+      {query.folder && (
+        <input type="hidden" name="folder" value={query.folder} />
+      )}
       <div id="library-search-row" className="flex items-center gap-2">
         <input
           id="library-search-input"
