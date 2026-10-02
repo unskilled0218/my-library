@@ -145,6 +145,15 @@ test('Kyobo details load progressively on a dedicated page', async ({
     name: 'Progressive Kyobo Test Book',
   })
   await expect(candidate).toBeVisible()
+  const result = page.locator('#kyobo-result-S000009999999')
+  await expect(result).toContainText('Fixture Category')
+  await expect(result).toContainText('Fixture Publisher')
+  await expect(result).toContainText('2026.09')
+  await expect(result).toContainText('18,000')
+  await expect(result).toContainText('4.8/5')
+  await expect(result).toContainText(
+    'Deterministic canonical details loaded after the preview.',
+  )
   await candidate.click({ noWaitAfter: true })
 
   await expect(page).toHaveURL(/\/search\/kyobo\/S000009999999/)
@@ -159,6 +168,12 @@ test('Kyobo details load progressively on a dedicated page', async ({
   ).toBeVisible()
   await expect(page.locator('#kyobo-details-loading')).toHaveCount(0)
   await expect(page.getByText('Fixture Genre')).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Progressive Kyobo Test Book' }),
+  ).toHaveCount(1)
+  await expect(
+    page.getByText('Deterministic canonical details loaded after the preview.'),
+  ).toHaveCount(1)
   await expect(page.getByRole('button', { name: '서재에 추가' })).toBeVisible()
   expect(
     await page.evaluate(

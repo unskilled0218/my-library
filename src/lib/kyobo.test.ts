@@ -12,7 +12,7 @@ const searchPayload = JSON.stringify({
         SALE_CMDTID: 'S000001750574',
         SALE_CMDT_DVSN_CODE_SUB: 'KOR',
         TOT_RELATE_HTML_LIST:
-          '9791157107223$@소설$@너의 췌장을 먹고 싶어$@스미노 요루$@출판사$@2017$@https://contents.kyobobook.co.kr/cover.jpg',
+          '9791157107223$@소설$@너의 췌장을 먹고 싶어$@스미노 요루$@소미미디어$@2017$@04$@13800.00$@12420.00$@10.00$@690$@N$@N$@KOR$@https://contents.kyobobook.co.kr/cover.jpg$@0$@0$@0$@0$@0$@5.00$@검색 결과 책 소개$@$@0$@0$@0$@010517$@0',
       },
     ],
   },
@@ -38,8 +38,91 @@ describe('Kyobo provider parsing', () => {
       saleId: 'S000001750574',
       authors: ['스미노 요루'],
       isbn: '9791157107223',
+      category: '소설',
+      publisher: '소미미디어',
+      publicationYear: 2017,
+      publicationMonth: 4,
+      listPrice: 13800,
+      salePrice: 12420,
+      discountPercent: 10,
+      rewardPoints: 690,
+      rating: 5,
+      description: '검색 결과 책 소개',
+      categoryCode: '010517',
     })
     expect(parseSearchResponse(searchPayload, '1111111111111')).toEqual([])
+  })
+
+  it('drops malformed optional fields without rejecting the candidate', () => {
+    const payload = JSON.parse(searchPayload)
+    const fields =
+      payload.data.resultDocuments[0].TOT_RELATE_HTML_LIST.split('$@')
+    fields[5] = '3020'
+    fields[6] = '13'
+    fields[7] = '-1'
+    fields[8] = 'free'
+    fields[9] = '101'
+    fields[10] = '1.5'
+    fields[20] = '6'
+    fields[26] = '../category'
+    payload.data.resultDocuments[0].TOT_RELATE_HTML_LIST = fields.join('$@')
+
+    expect(parseSearchResponse(JSON.stringify(payload), 'book')[0]).toEqual(
+      expect.objectContaining({
+        publicationYear: undefined,
+        publicationMonth: undefined,
+        listPrice: undefined,
+        salePrice: undefined,
+        discountPercent: undefined,
+        rewardPoints: undefined,
+        rating: undefined,
+        categoryCode: undefined,
+      }),
+    )
+  })
+
+  it('deduplicates sale IDs while preserving distinct editions', () => {
+    const payload = JSON.parse(searchPayload)
+    const original = payload.data.resultDocuments[0]
+    payload.data.resultDocuments.push(
+      { ...original, CMDT_NAME: 'Duplicate should not replace first' },
+      {
+        ...original,
+        CMDTCODE: '4801157107223',
+        SALE_CMDTID: 'E000001750574',
+        SALE_CMDT_DVSN_CODE_SUB: 'UNKNOWN',
+      },
+    )
+
+    const results = parseSearchResponse(JSON.stringify(payload), 'title')
+    expect(results.map((book) => book.saleId)).toEqual([
+      'S000001750574',
+      'E000001750574',
+    ])
+    expect(results[1].format).toBe('EBOOK')
+    expect(results[0].title).toBe('너의 췌장을 먹고 싶어')
+  })
+
+  it('skips malformed runtime documents while retaining valid results', () => {
+    const payload = JSON.parse(searchPayload)
+    payload.data.resultDocuments.unshift(
+      null,
+      { CMDTCODE: 123, CMDT_NAME: {}, SALE_CMDTID: [] },
+      {
+        CMDTCODE: '9791234567890',
+        CMDT_NAME: 'Malformed optional fields',
+        SALE_CMDTID: 'S123',
+        TOT_RELATE_HTML_LIST: { unexpected: true },
+      },
+    )
+
+    const results = parseSearchResponse(JSON.stringify(payload), 'title')
+    expect(results).toHaveLength(2)
+    expect(results.map((book) => book.saleId)).toEqual([
+      'S123',
+      'S000001750574',
+    ])
+    expect(results[0].category).toBeUndefined()
   })
 
   it('extracts contributors, short description, and every genre path', () => {

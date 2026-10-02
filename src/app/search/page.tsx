@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { addManualBookAction } from '@/app/actions'
 import { currentUser } from '@/lib/auth'
+import { KyoboSearchMetadata } from '@/components/kyobo-search-metadata'
 import {
   normalizeSearchQuery,
   normalizeSearchSource,
@@ -223,8 +224,8 @@ export default async function GlobalSearchPage({
                         alt=""
                       />
                     )}
-                    <div>
-                      <h3 className="font-serif text-xl font-bold">
+                    <div className="min-w-0">
+                      <h3 className="break-words font-serif text-xl font-bold">
                         {book.title}
                       </h3>
                       {book.authors.length > 0 && (
@@ -235,6 +236,7 @@ export default async function GlobalSearchPage({
                       <p className="mt-1 text-sm text-ink/60">
                         {book.isbn} · {common[enumMessages[book.format]]}
                       </p>
+                      <KyoboSearchMetadata value={book} language={language} />
                     </div>
                   </Link>
                 )
