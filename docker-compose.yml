@@ -1,21 +1,31 @@
 services:
   app:
-    image: node:24-bookworm
-    working_dir: /app
-    command: sh -c "npm ci && npx playwright install --with-deps chromium && npm run db:generate && npm run db:migrate && npm run dev"
+    image: git.lan/dev/my-library:${MY_LIBRARY_VERSION:-latest}
+    container_name: my-library
     ports:
       - '3000:3000'
     env_file: .env
     environment:
-      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      NODE_ENV: production
+      COVER_STORAGE_PATH: /app/data/covers
     volumes:
-      - ./:/app
-      - node_modules:/app/node_modules
       - covers:/app/data/covers
-      - playwright_browsers:/ms-playwright
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
   db:
     image: postgres:17-alpine
     environment:
@@ -29,9 +39,8 @@ services:
       retries: 10
     volumes:
       - postgres:/var/lib/postgresql/data
+    restart: unless-stopped
 
 volumes:
-  node_modules:
   covers:
-  playwright_browsers:
   postgres:
