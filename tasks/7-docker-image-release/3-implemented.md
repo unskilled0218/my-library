@@ -25,7 +25,7 @@
 - `npm ls --omit=dev`: passed and lists both `prisma@6.12.0` and the application runtime dependencies in the production tree.
 - `npm install --package-lock-only --ignore-scripts`: passed with no lockfile changes, no vulnerabilities, and matching package/lockfile version `0.5.0`.
 - `bash -n docker-entrypoint.sh scripts/release.sh`: passed.
-- Release-helper argument rejection returned status 2 and its usage message; invocation without Docker returned status 1 and the explicit missing-Docker diagnostic before any network or release mutation.
+- Release-helper argument rejection returned status 2 and its usage message; invocation without Docker returned status 1 and the explicit missing-Docker diagnostic; a clean-tree invocation with a harmless Docker command stub rejected branch `7-docker-image-release` before any network or Docker operation.
 - Both shell files have executable mode `755`; the generated standalone tree contains Playwright, Prisma Client, and the generated `.prisma` client.
 - Prettier parsed both Compose YAML files successfully, `git diff --check` passed, secret scans found no committed credential value, and scans confirmed the image creates no user or group and declares only the existing `node` account.
 - A focused read-only review of the Docker and release flow found no remaining commit-blocking correctness or security issue after adding fail-closed package lookup, temporary Docker credentials, loopback-only development PostgreSQL, digest-based final `latest` promotion, cover ownership migration, and atomic Forgejo tag reservation.
