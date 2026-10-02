@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { addKyoboBookAction, addManualBookAction } from '@/app/actions'
-import { KyoboReviewModal } from '@/components/kyobo-review-modal'
+import { redirect } from 'next/navigation'
+import { addManualBookAction } from '@/app/actions'
 import { currentUser } from '@/lib/auth'
 import {
   normalizeSearchQuery,
@@ -10,7 +10,12 @@ import {
   searchReadableLibraryBooks,
   writableLibraryDestinations,
 } from '@/lib/library-search'
-import { getKyoboBook, searchKyobo } from '@/lib/kyobo'
+import { searchKyobo } from '@/lib/kyobo'
+import {
+  appendSearchContext,
+  buildKyoboDetailHref,
+  isKyoboSaleId,
+} from '@/lib/kyobo-preview'
 import { commonMessages, enumMessages } from '@/lib/i18n/common'
 import { searchMessages } from '@/lib/i18n/search'
 import { getLanguage } from '@/lib/i18n/server'
@@ -39,29 +44,37 @@ export default async function GlobalSearchPage({
   const source = normalizeSearchSource(rawQuery.source, Boolean(user))
   const searchLibraries = Boolean(user && q && source !== 'kyobo')
   const searchKyoboBooks = Boolean(q && source !== 'library')
+  const destinationsPromise =
+    user && source !== 'library'
+      ? writableLibraryDestinations(user.id)
+      : Promise.resolve([])
 
-  const [libraryResult, kyoboResult, destinations, detailResult] =
-    await Promise.all([
-      searchLibraries
-        ? searchReadableLibraryBooks(user!.id, q)
-        : Promise.resolve({ books: [], truncated: false }),
-      searchKyoboBooks
-        ? searchKyobo(q)
-            .then((books) => ({ books, error: '' }))
-            .catch(() => ({ books: [], error: messages.kyoboUnavailable }))
-        : Promise.resolve({ books: [], error: '' }),
-      user && source !== 'library'
-        ? writableLibraryDestinations(user.id)
-        : Promise.resolve([]),
-      rawQuery.selected && source !== 'library'
-        ? getKyoboBook(rawQuery.selected)
-            .then((book) => ({ book, error: '' }))
-            .catch(() => ({
-              book: null,
-              error: messages.detailsUnavailable,
-            }))
-        : Promise.resolve({ book: null, error: '' }),
-    ])
+  if (isKyoboSaleId(rawQuery.selected) && source !== 'library') {
+    const destinations = await destinationsPromise
+    const destinationId = destinations.some(
+      (library) => library.id === rawQuery.libraryId,
+    )
+      ? rawQuery.libraryId
+      : destinations[0]?.id
+    const detailParams = appendSearchContext(new URLSearchParams(), {
+      q,
+      source,
+      ...(destinationId ? { libraryId: destinationId } : {}),
+    })
+    redirect(`/search/kyobo/${rawQuery.selected}?${detailParams}`)
+  }
+
+  const [libraryResult, kyoboResult, destinations] = await Promise.all([
+    searchLibraries
+      ? searchReadableLibraryBooks(user!.id, q)
+      : Promise.resolve({ books: [], truncated: false }),
+    searchKyoboBooks
+      ? searchKyobo(q)
+          .then((books) => ({ books, error: '' }))
+          .catch(() => ({ books: [], error: messages.kyoboUnavailable }))
+      : Promise.resolve({ books: [], error: '' }),
+    destinationsPromise,
+  ])
   const destinationId = destinations.some(
     (library) => library.id === rawQuery.libraryId,
   )
@@ -189,117 +202,19 @@ export default async function GlobalSearchPage({
               {kyoboResult.error}
             </p>
           )}
-          {rawQuery.selected && (detailResult.book || detailResult.error) && (
-            <KyoboReviewModal closeHref={`/search?${closeParams}`}>
-              {detailResult.error && (
-                <p
-                  className="rounded-xl bg-rust/10 p-4 text-sm text-rust"
-                  role="alert"
-                >
-                  {detailResult.error}
-                </p>
-              )}
-              {detailResult.book && (
-                <article id="kyobo-book-review">
-                  {rawQuery.status === 'already-exists' && (
-                    <p
-                      id="kyobo-add-message"
-                      className="mb-5 rounded-xl bg-rust/10 p-4 text-sm font-semibold text-rust"
-                      role="alert"
-                    >
-                      {messages.alreadyExists}
-                    </p>
-                  )}
-                  <div className="flex flex-col gap-5 sm:flex-row">
-                    {detailResult.book.coverUrl && (
-                      <img
-                        className="h-44 w-28 shrink-0 object-contain"
-                        src={detailResult.book.coverUrl}
-                        alt=""
-                      />
-                    )}
-                    <div>
-                      <p className="eyebrow">{messages.reviewBeforeAdding}</p>
-                      <h2 className="mt-2 font-serif text-3xl font-bold">
-                        {detailResult.book.title}
-                      </h2>
-                      <p className="mt-2 text-sm">
-                        {detailResult.book.authors.join(', ')}
-                      </p>
-                      <p className="mt-3 text-sm leading-6 text-ink/60">
-                        {detailResult.book.description}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-5 space-y-2 text-xs text-ink/60">
-                    {detailResult.book.genrePaths.map((path, index) => (
-                      <p key={index}>
-                        {path.map((genre) => genre.name).join(' > ')}
-                      </p>
-                    ))}
-                  </div>
-                  {user ? (
-                    destinations.length ? (
-                      <form
-                        action={addKyoboBookAction}
-                        className="mt-5 flex flex-col gap-3 sm:flex-row"
-                      >
-                        <input
-                          type="hidden"
-                          name="saleId"
-                          value={detailResult.book.saleId}
-                        />
-                        <input type="hidden" name="q" value={q} />
-                        <input type="hidden" name="source" value={source} />
-                        <label className="min-w-0 flex-1 text-sm font-semibold">
-                          {messages.destinationLibrary}
-                          <select
-                            id="kyobo-destination-library"
-                            className="mt-1"
-                            name="libraryId"
-                            defaultValue={destinationId}
-                            required
-                          >
-                            {destinations.map((library) => (
-                              <option key={library.id} value={library.id}>
-                                {library.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <button className="self-end" type="submit">
-                          {messages.addToLibrary}
-                        </button>
-                      </form>
-                    ) : (
-                      <p className="mt-5 text-sm text-rust">
-                        {messages.noWritableLibrary}
-                      </p>
-                    )
-                  ) : (
-                    <Link className="button mt-5" href="/login">
-                      {messages.signInToAdd}
-                    </Link>
-                  )}
-                </article>
-              )}
-            </KyoboReviewModal>
-          )}
           {!kyoboResult.error && (
             <div className="mt-5 space-y-3">
               {kyoboResult.books.map((book, index) => {
-                const params = new URLSearchParams({
-                  q,
-                  source,
-                  selected: book.saleId,
-                  ...(destinationId ? { libraryId: destinationId } : {}),
-                })
                 return (
                   <Link
                     id={`kyobo-result-${book.saleId}`}
                     key={`${book.saleId}-${index}`}
                     className="flex items-center gap-4 rounded-2xl border border-ink/10 bg-white/80 p-4 transition hover:border-moss"
-                    href={`/search?${params}`}
+                    href={buildKyoboDetailHref(book, {
+                      q,
+                      source,
+                      ...(destinationId ? { libraryId: destinationId } : {}),
+                    })}
                   >
                     {book.coverUrl && (
                       <img

@@ -7,6 +7,7 @@ export default defineConfig({
   use: { baseURL: 'http://127.0.0.1:3000', trace: 'on-first-retry' },
   webServer: {
     command: 'npm run dev',
+    env: { ...process.env, KYOBO_TEST_FIXTURE: '1' },
     url: 'http://127.0.0.1:3000/api/health',
     reuseExistingServer: true,
     timeout: 120_000,
