@@ -71,18 +71,18 @@ The release command requires a clean `main` checkout whose `package.json` and `p
 Create a Forgejo access token with repository-write and package-write permission, and store it outside the repository in a user-only file:
 
 ```bash
-install -d -m 700 "$HOME/.config/my-library"
+install -d -m 700 "$HOME/.config/forgejo"
 umask 077
 read -rsp "Forgejo token: " token
-printf '%s' "$token" > "$HOME/.config/my-library/forgejo-token"
+printf '%s' "$token" > "$HOME/.config/forgejo/forgejo-token"
 unset token
-stat -c '%a %n' "$HOME/.config/my-library/forgejo-token"
+stat -c '%a %n' "$HOME/.config/forgejo/forgejo-token"
 ```
 
 The token file must have mode `600`. Do not put the token in this repository, `.env`, Compose, release arguments, or shell history. The release helper uses a temporary Docker configuration and removes its registry credentials on exit. Before publishing, run `npm run test:e2e` against a migrated disposable database and commit the intended package version. Then release with:
 
 ```bash
-FORGEJO_TOKEN="$(<"$HOME/.config/my-library/forgejo-token")" \
+FORGEJO_TOKEN="$(<"$HOME/.config/forgejo/forgejo-token")" \
   ./scripts/release.sh
 ```
 
