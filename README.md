@@ -24,10 +24,10 @@ A responsive personal book-management service for private and shared libraries, 
 
 ## Documentation
 
-- [Production deployment, backups, and upgrades](docs/guide.md#production-deployment)
-- [Local development](docs/guide.md#local-development)
-- [Publishing a release](docs/guide.md#publish-a-release)
-- [Verification and Kyobo diagnostics](docs/guide.md#verification)
-- [Language preferences](docs/guide.md#languages)
-- [Settings and backup scope](docs/guide.md#settings-scope)
-- [Security boundaries](docs/guide.md#security-boundaries)
+- [Production deployment, backups, and upgrades](docs/production-deployment.md)
+- [Local development](docs/local-development.md)
+- [Publishing a release](docs/publish-a-release.md)
+- [Verification and Kyobo diagnostics](docs/verification.md)
+- [Language preferences](docs/languages.md)
+- [Settings and backup scope](docs/settings-scope.md)
+- [Security boundaries](docs/security-boundaries.md)
