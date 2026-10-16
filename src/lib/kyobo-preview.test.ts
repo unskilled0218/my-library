@@ -8,6 +8,21 @@ import {
 } from '@/lib/kyobo-preview'
 
 describe('Kyobo preview URLs', () => {
+  it('preserves ISBN-10 check digit X through result-preview navigation', () => {
+    const href = buildKyoboDetailHref(
+      {
+        saleId: 'S1',
+        title: 'Book',
+        authors: [],
+        isbn: '0-9752298-0-x',
+        format: 'PHYSICAL',
+      },
+      { q: '097522980X', source: 'kyobo' },
+    )
+    const url = new URL(href, 'https://example.test')
+    expect(parseKyoboPreview(url.searchParams)?.isbn).toBe('097522980X')
+    expect(url.pathname).toBe('/search/kyobo/S1')
+  })
   it('round trips bounded Korean metadata and repeated authors', () => {
     const href = buildKyoboDetailHref(
       {

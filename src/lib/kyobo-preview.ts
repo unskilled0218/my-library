@@ -1,5 +1,5 @@
 import type { SearchSource } from '@/lib/global-search'
-import { normalizeIsbn } from '@/lib/validation'
+import { isbnIdentity } from '@/lib/isbn'
 
 const MAX_SALE_ID_DIGITS = 20
 const MAX_TITLE_LENGTH = 240
@@ -105,8 +105,8 @@ export function parseKyoboPreview(
   const formatValue = boundedValue(source, 'format', 16)
   if (!title || !isbnValue) return null
 
-  const isbn = normalizeIsbn(isbnValue)
-  if (!/^(?:\d{10}|\d{13})$/.test(isbn)) return null
+  const isbn = isbnIdentity(isbnValue)
+  if (!isbn) return null
   if (formatValue !== 'PHYSICAL' && formatValue !== 'EBOOK') return null
 
   const authors = parameterValues(source, 'author')

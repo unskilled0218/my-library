@@ -72,7 +72,10 @@ export default async function GlobalSearchPage({
     searchKyoboBooks
       ? searchKyobo(q)
           .then((books) => ({ books, error: '' }))
-          .catch(() => ({ books: [], error: messages.kyoboUnavailable }))
+          .catch((error) => {
+            console.error('Kyobo search failed', { query: q, error })
+            return { books: [], error: messages.kyoboUnavailable }
+          })
       : Promise.resolve({ books: [], error: '' }),
     destinationsPromise,
   ])
