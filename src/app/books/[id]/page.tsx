@@ -115,14 +115,14 @@ export default async function BookPage({
               <input type="hidden" name="bookId" value={id} />
               <label>
                 {messages.title}
-                <input name="title" defaultValue={book.title} required />
+                <input name="title" defaultValue={book.title} readOnly />
               </label>
               <label>
                 {messages.authors}
                 <input
                   name="authors"
                   defaultValue={book.authors.join(', ')}
-                  required
+                  readOnly
                 />
               </label>
               <label>

@@ -13,6 +13,10 @@ const mocks = vi.hoisted(() => ({
   upsertSettings: vi.fn().mockResolvedValue({}),
   setLanguageCookie: vi.fn(),
   requireLibraryAccess: vi.fn().mockResolvedValue('OWNER'),
+  requireBookAccess: vi.fn(),
+  findLibrary: vi.fn(),
+  findBook: vi.fn(),
+  updateBook: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
@@ -22,14 +26,20 @@ vi.mock('@/lib/auth', () => ({
 }))
 vi.mock('@/lib/access', () => ({
   requireLibraryAccess: mocks.requireLibraryAccess,
+  requireBookAccess: mocks.requireBookAccess,
 }))
 vi.mock('@/lib/db', () => ({
   db: {
     book: { findFirst: mocks.findFirst },
+    library: { findUniqueOrThrow: mocks.findLibrary },
     userDisplaySettings: { upsert: mocks.upsertSettings },
     $transaction: (callback: (tx: unknown) => unknown) =>
       callback({
-        book: { create: mocks.createBook },
+        book: {
+          create: mocks.createBook,
+          findUniqueOrThrow: mocks.findBook,
+          update: mocks.updateBook,
+        },
         auditLog: { create: mocks.createAudit },
       }),
   },
@@ -46,7 +56,11 @@ vi.mock('@/lib/i18n/cookie', () => ({
   setLanguageCookie: mocks.setLanguageCookie,
 }))
 
-import { addKyoboBookAction, updateLanguageAction } from '@/app/actions'
+import {
+  addKyoboBookAction,
+  updateBookAction,
+  updateLanguageAction,
+} from '@/app/actions'
 
 describe('addKyoboBookAction', () => {
   beforeEach(() => {
@@ -145,6 +159,49 @@ describe('addKyoboBookAction', () => {
 
     expect(mocks.getKyoboBook).not.toHaveBeenCalled()
   })
+})
+
+describe('updateBookAction', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.requireBookAccess.mockResolvedValue({ libraryId: 'library-1' })
+    mocks.findLibrary.mockResolvedValue({ ownerId: 'user-1' })
+    mocks.findBook.mockResolvedValue({ folderId: null })
+    mocks.updateBook.mockResolvedValue({ id: 'book-1' })
+  })
+
+  it.each(['missing', 'forged'])(
+    'saves editable details without changing title or authors when metadata is %s',
+    async (metadata) => {
+      const form = new FormData()
+      form.set('bookId', 'book-1')
+      form.set('comment', 'My updated notes')
+      form.set('rating', '4')
+      form.set('ownershipState', 'DONT_HAVE')
+      if (metadata === 'forged') {
+        form.set('title', 'Replacement title')
+        form.set('authors', 'Replacement author, Another author')
+      }
+
+      await updateBookAction(form)
+
+      expect(mocks.requireBookAccess).toHaveBeenCalledWith(
+        { id: 'user-1' },
+        'book-1',
+        'WRITE',
+      )
+      const update = mocks.updateBook.mock.calls[0][0]
+      expect(update.where).toEqual({ id: 'book-1' })
+      expect(update.data).not.toHaveProperty('title')
+      expect(update.data).not.toHaveProperty('authors')
+      expect(update.data).toMatchObject({
+        comment: 'My updated notes',
+        rating: 4,
+        ownershipState: 'DONT_HAVE',
+      })
+      expect(mocks.revalidatePath).toHaveBeenCalledWith('/books/book-1')
+    },
+  )
 })
 
 describe('updateLanguageAction', () => {

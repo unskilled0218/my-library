@@ -812,11 +812,6 @@ export async function updateBookAction(form: FormData) {
     await tx.book.update({
       where: { id: bookId },
       data: {
-        title: value(form, 'title').slice(0, 300),
-        authors: value(form, 'authors')
-          .split(',')
-          .map((author) => author.trim())
-          .filter(Boolean),
         comment: value(form, 'comment').slice(0, 10_000),
         ownershipState:
           value(form, 'ownershipState') === 'DONT_HAVE'
