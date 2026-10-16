@@ -5,6 +5,7 @@ const allowedDevOrigins = process.env.ALLOWED_DEV_ORIGINS?.split(',')
   .filter(Boolean)
 
 const nextConfig: NextConfig = {
+  distDir: process.env.PLAYWRIGHT_TEST_SERVER === '1' ? '.next/e2e' : '.next',
   output: 'standalone',
   allowedDevOrigins,
   experimental: {

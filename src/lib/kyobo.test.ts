@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import { parseProductHtml, parseSearchResponse } from '@/lib/kyobo'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  getKyoboBook,
+  parseProductHtml,
+  parseSearchResponse,
+  searchKyobo,
+} from '@/lib/kyobo'
 
 const searchPayload = JSON.stringify({
   resultCode: '200',
@@ -29,6 +34,46 @@ const productHtml = `<!doctype html><html><body>
     <li><ul><li><a href="https://store.kyobobook.co.kr/category/domestic">국내도서</a></li><li><a href="https://store.kyobobook.co.kr/category/domestic/01">소설</a></li><li><a href="https://store.kyobobook.co.kr/category/domestic/0128">장르소설</a></li><li><a href="https://store.kyobobook.co.kr/category/domestic/012819">드라마/영화소설</a></li></ul></li>
   </ul>
 </body></html>`
+
+describe('deferred add-time fixtures', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+  })
+
+  it('scopes first-attempt failure to each product and leaves preview searches independent', async () => {
+    vi.stubEnv('NODE_ENV', 'test')
+    vi.stubEnv('KYOBO_TEST_FIXTURE', '1')
+    vi.useFakeTimers()
+    const [first] = await searchKyobo('deferred kyobo fixture 123456789')
+    const [second] = await searchKyobo('deferred kyobo fixture 987654321')
+    expect(first.saleId).not.toBe(second.saleId)
+    const initialFailure = expect(getKyoboBook(first.saleId)).rejects.toThrow(
+      'Deterministic first add attempt failed',
+    )
+    await vi.advanceTimersByTimeAsync(1500)
+    await initialFailure
+    const success = getKyoboBook(first.saleId)
+    await vi.advanceTimersByTimeAsync(1500)
+    await expect(success).resolves.toMatchObject({
+      title: first.title,
+      authors: ['Fixture Author', 'Verified Contributor'],
+      genrePaths: [
+        [
+          {
+            name: 'Fixture Genre',
+            url: 'https://store.kyobobook.co.kr/category/fixture-kyobo',
+          },
+        ],
+      ],
+    })
+    const separateFailure = expect(getKyoboBook(second.saleId)).rejects.toThrow(
+      'Deterministic first add attempt failed',
+    )
+    await vi.advanceTimersByTimeAsync(1500)
+    await separateFailure
+  })
+})
 
 describe('Kyobo provider parsing', () => {
   it('uses the first exact ISBN result', () => {

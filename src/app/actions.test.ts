@@ -65,6 +65,7 @@ import {
 describe('addKyoboBookAction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.findLibrary.mockResolvedValue({ ownerId: 'user-1' })
     mocks.getKyoboBook.mockResolvedValue({
       saleId: 'S000001772370',
       title: 'Dune',
@@ -78,7 +79,7 @@ describe('addKyoboBookAction', () => {
     })
   })
 
-  it('returns to the review with a useful message when the book exists', async () => {
+  it('returns inline duplicate feedback without creating or downloading a cover', async () => {
     mocks.findFirst.mockResolvedValue({ id: 'book-1' })
     const form = new FormData()
     form.set('libraryId', 'library-1')
@@ -94,7 +95,9 @@ describe('addKyoboBookAction', () => {
     form.set('salePrice', '18000')
     form.set('description', 'Untrusted description')
 
-    await expect(addKyoboBookAction(form)).rejects.toThrow('REDIRECT:')
+    await expect(addKyoboBookAction(form)).resolves.toEqual({
+      error: 'alreadyExists',
+    })
 
     expect(mocks.findFirst).toHaveBeenCalledWith({
       where: {
@@ -108,9 +111,8 @@ describe('addKyoboBookAction', () => {
       },
       select: { id: true },
     })
-    expect(mocks.redirect).toHaveBeenCalledWith(
-      '/search/kyobo/S000001772370?q=Dune&source=all&libraryId=library-1&title=Untrusted+title&author=Untrusted+author&isbn=9791158887544&format=PHYSICAL&category=Untrusted+category&publisher=Untrusted+publisher&salePrice=18000&description=Untrusted+description&status=already-exists',
-    )
+    expect(mocks.redirect).not.toHaveBeenCalled()
+    expect(mocks.createBook).not.toHaveBeenCalled()
     expect(mocks.downloadCover).not.toHaveBeenCalled()
   })
 
@@ -155,7 +157,9 @@ describe('addKyoboBookAction', () => {
     form.set('libraryId', 'forged-library')
     form.set('saleId', 'S000001772370')
 
-    await expect(addKyoboBookAction(form)).rejects.toThrow('Access denied')
+    await expect(addKyoboBookAction(form)).resolves.toEqual({
+      error: 'accessDenied',
+    })
 
     expect(mocks.getKyoboBook).not.toHaveBeenCalled()
   })
