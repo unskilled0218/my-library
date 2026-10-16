@@ -138,6 +138,7 @@ test('Kyobo full information is retrieved only when adding from the review page'
   await page.getByLabel('로그인 ID').fill(loginId)
   await page.getByLabel('비밀번호').fill('correct-horse-library-staple')
   await page.getByRole('button', { name: '계속' }).click()
+  await expect(page).toHaveURL(/\/libraries$/)
 
   const search = page.locator('#header-search-form')
   await search.getByLabel('책 검색').fill('progressive kyobo fixture')
@@ -176,6 +177,7 @@ test('Kyobo full information is retrieved only when adding from the review page'
   ).toBe(true)
 
   await page.goBack()
+  await expect(page).toHaveURL(/\/search\?/)
   await expect(candidate).toBeVisible()
   await candidate.click()
   const addForm = page.locator('#kyobo-add-book-form')
@@ -189,8 +191,10 @@ test('Kyobo full information is retrieved only when adding from the review page'
   await expect(page).toHaveURL(/\/search\?.*status=added/)
   await page.getByRole('link', { name: '서재로 이동', exact: true }).click()
   await page
+    .locator('#library-book-list')
     .getByRole('heading', { name: 'Progressive Kyobo Test Book' })
     .click()
+  await expect(page).toHaveURL(/\/books\/[^/?]+$/)
   await expect(
     page.getByText('Fixture Author, Verified Contributor'),
   ).toBeVisible()

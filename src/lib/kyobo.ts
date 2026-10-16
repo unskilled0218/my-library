@@ -289,7 +289,7 @@ export async function getKyoboBook(saleId: string): Promise<KyoboBook> {
         [
           {
             name: 'Fixture Genre',
-            url: 'https://store.kyobobook.co.kr/category/domestic/01',
+            url: 'https://store.kyobobook.co.kr/category/fixture-kyobo',
           },
         ],
       ],

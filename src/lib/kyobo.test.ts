@@ -58,6 +58,14 @@ describe('deferred add-time fixtures', () => {
     await expect(success).resolves.toMatchObject({
       title: first.title,
       authors: ['Fixture Author', 'Verified Contributor'],
+      genrePaths: [
+        [
+          {
+            name: 'Fixture Genre',
+            url: 'https://store.kyobobook.co.kr/category/fixture-kyobo',
+          },
+        ],
+      ],
     })
     const separateFailure = expect(getKyoboBook(second.saleId)).rejects.toThrow(
       'Deterministic first add attempt failed',

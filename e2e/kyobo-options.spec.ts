@@ -71,8 +71,8 @@ test('failed add-time retrieval saves nothing and retry keeps selected options i
   ).toHaveCount(0)
   await form.getByLabel('Ownership').selectOption('DONT_HAVE')
   await form.getByLabel('Reading state').selectOption('DONE')
-  await form.getByLabel('Started').fill('2024-01-01')
-  await form.getByLabel('Finished').fill('2024-02-01')
+  await form.getByLabel('Started', { exact: true }).fill('2024-01-01')
+  await form.getByLabel('Finished', { exact: true }).fill('2024-02-01')
   await form.getByLabel('Rating').selectOption('5')
   await form.getByLabel('Personal comment').fill('Keep these options on retry')
   await form.getByRole('button', { name: 'Add to library' }).click()
@@ -84,8 +84,12 @@ test('failed add-time retrieval saves nothing and retry keeps selected options i
   )
   await expect(form.getByLabel('Ownership')).toHaveValue('DONT_HAVE')
   await expect(form.getByLabel('Reading state')).toHaveValue('DONE')
-  await expect(form.getByLabel('Started')).toHaveValue('2024-01-01')
-  await expect(form.getByLabel('Finished')).toHaveValue('2024-02-01')
+  await expect(form.getByLabel('Started', { exact: true })).toHaveValue(
+    '2024-01-01',
+  )
+  await expect(form.getByLabel('Finished', { exact: true })).toHaveValue(
+    '2024-02-01',
+  )
   await expect(form.getByLabel('Rating')).toHaveValue('5')
   await expectNoOverflow(page)
 
@@ -99,15 +103,23 @@ test('failed add-time retrieval saves nothing and retry keeps selected options i
   await form.getByRole('button', { name: 'Add to library' }).click()
   await expect(page).toHaveURL(/\/search\?.*status=added/)
   await page.getByRole('link', { name: 'Go to library', exact: true }).click()
-  await page.getByRole('heading', { name: 'Deferred Kyobo Test Book' }).click()
+  await page
+    .locator('#library-book-list')
+    .getByRole('heading', { name: 'Deferred Kyobo Test Book' })
+    .click()
+  await expect(page).toHaveURL(/\/books\/[^/?]+$/)
   await expect(
     page.getByText('Fixture Author, Verified Contributor'),
   ).toBeVisible()
   await expect(page.getByText('Fixture Genre', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Ownership')).toHaveValue('DONT_HAVE')
   await expect(page.getByLabel('Reading state')).toHaveValue('DONE')
-  await expect(page.getByLabel('Started')).toHaveValue('2024-01-01')
-  await expect(page.getByLabel('Finished')).toHaveValue('2024-02-01')
+  await expect(page.getByLabel('Started', { exact: true })).toHaveValue(
+    '2024-01-01',
+  )
+  await expect(page.getByLabel('Finished', { exact: true })).toHaveValue(
+    '2024-02-01',
+  )
   await expect(page.getByLabel('Rating')).toHaveValue('5')
   await expect(page.getByLabel('Personal comment')).toHaveValue(
     'Keep these options on retry',
@@ -147,15 +159,19 @@ test('destination switching resets tags and folders and an editor saves the libr
     await page.goto(`/search/kyobo/S000009999999?libraryId=${ownId}`)
     const form = page.locator('#kyobo-add-book-form')
     await form
-      .getByLabel('위치', { exact: true })
+      .getByRole('combobox', { name: '위치', exact: true })
       .selectOption({ label: 'Editor shelf' })
     await form
-      .getByLabel('폴더', { exact: true })
+      .getByRole('combobox', { name: '폴더', exact: true })
       .selectOption({ label: 'Editor folder' })
     await form.getByLabel('개인 메모').fill('Shared library choices')
     await form.getByLabel('추가할 서재').selectOption(sharedId)
-    await expect(form.getByLabel('위치', { exact: true })).toHaveValue('')
-    await expect(form.getByLabel('폴더', { exact: true })).toHaveValue('')
+    await expect(
+      form.getByRole('combobox', { name: '위치', exact: true }),
+    ).toHaveValue('')
+    await expect(
+      form.getByRole('combobox', { name: '폴더', exact: true }),
+    ).toHaveValue('')
     await expect(
       form.getByRole('option', { name: 'Editor shelf' }),
     ).toHaveCount(0)
@@ -163,10 +179,10 @@ test('destination switching resets tags and folders and an editor saves the libr
       form.getByRole('option', { name: 'Editor folder' }),
     ).toHaveCount(0)
     await form
-      .getByLabel('위치', { exact: true })
+      .getByRole('combobox', { name: '위치', exact: true })
       .selectOption({ label: 'Owner shelf' })
     await form
-      .getByLabel('폴더', { exact: true })
+      .getByRole('combobox', { name: '폴더', exact: true })
       .selectOption({ label: 'Owner folder' })
     await expectNoOverflow(page)
     await form.getByRole('button', { name: '서재에 추가' }).click()

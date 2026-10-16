@@ -5,7 +5,7 @@
   - [Validation And Persistence](#validation-and-persistence)
   - [Regression Coverage](#regression-coverage)
   - [Verification Results](#verification-results)
-  - [Browser Verification Blocker](#browser-verification-blocker)
+  - [Browser Retest](#browser-retest)
   - [Decisions And Version](#decisions-and-version)
 
 ## Changes
@@ -44,13 +44,18 @@
 - Prettier checks for all changed files and `git diff --check`: Passed.
 - Created isolated database `library_test_14` on the existing development PostgreSQL service and applied all six existing migrations. No application schema migration was added, and the seeded `library_dev` database was not used for browser tests.
 - `npx --no-install playwright test --list` with `PLAYWRIGHT_DATABASE_URL` targeting `library_test_14`: Passed, discovering 22 cases across three files and both projects.
-- `npm run test:e2e` with `PLAYWRIGHT_DATABASE_URL` targeting `library_test_14`: The dedicated server started successfully. All 22 cases failed at browser launch because Chromium is not installed; no browser scenario body or assertion ran. The database remains available for a rerun after installing the browser.
+- Initial `npm run test:e2e` with `PLAYWRIGHT_DATABASE_URL` targeting `library_test_14`: Blocked at Chromium launch. The user subsequently installed Chromium, and the completed rerun below supersedes that initial blocker.
+- Final `npm run test:e2e` with `PLAYWRIGHT_DATABASE_URL` targeting `library_test_14`: Passed, 21 cases and one expected skip across desktop/mobile projects in approximately 1.5 minutes. The skipped desktop case checks mobile-only ISBN scanner layout; the mobile scanner case passed.
 
-## Browser Verification Blocker
+## Browser Retest
 
-The missing executable is `/home/container/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell`. Install Chromium with `npx playwright install chromium` using the environment's normal setup process, then rerun with `PLAYWRIGHT_DATABASE_URL` pointing to the migrated disposable database. No browser or system packages were installed during this task. Real live Kyobo scraping also requires Chromium; no live Kyobo request was attempted during verification.
+- Verified Chromium launch after the user's installation. The first complete browser attempt then exposed a test-server origin issue: the workspace's normal origin settings blocked loopback HMR and prevented client hydration. The Playwright child process now explicitly allows `127.0.0.1` without changing the normal development environment.
+- Fixed test selectors to distinguish the start-date input from the reading-state option "Not started" and to select location/folder comboboxes by their accessible roles and names.
+- Added registration/navigation waits and scoped saved-book heading clicks to the library book list, preventing tests from acting on stale search-result headings during client navigation.
+- Gave the nonproduction Kyobo genre fixture its own URL so it cannot collide with the global genre identity used by import fixtures or previous test runs. Extended the existing fixture unit regression to assert this identity.
+- All six targeted Kyobo scenarios passed on desktop/mobile, followed by the complete suite with 21 passes and the expected desktop-only scanner skip. This verifies persisted canonical metadata and options, failure-without-save, retained choices on retry, shared-owner location/folder scoping, client navigation, responsive assertions, and the existing scanner/upload/settings flows.
 
-Browser-level persistence, retry navigation, shared-library selections, and responsive layout remain unverified until that rerun succeeds. Test discovery and mocked/component tests are not substitutes for browser execution.
+No browser/system packages were installed by the agent, and no live Kyobo request was attempted. The browser suite uses deterministic fixtures and the isolated `library_test_14` database.
 
 ## Decisions And Version
 

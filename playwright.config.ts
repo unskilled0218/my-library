@@ -23,6 +23,7 @@ export default defineConfig({
       DATABASE_URL: databaseUrl,
       KYOBO_TEST_FIXTURE: '1',
       PLAYWRIGHT_TEST_SERVER: '1',
+      ALLOWED_DEV_ORIGINS: '127.0.0.1',
       COVER_STORAGE_PATH: '.next/e2e/covers',
       BOOK_FILE_STORAGE_PATH: '.next/e2e/books',
     },
