@@ -27,6 +27,7 @@ import {
 } from '@/lib/auth'
 import { downloadCover, removeCover, saveCoverData } from '@/lib/covers'
 import { removeBookFile } from '@/lib/book-files'
+import { parseBookOptions, type KyoboAddResult } from '@/lib/book-options'
 import { db } from '@/lib/db'
 import { upsertGenrePaths } from '@/lib/genres'
 import {
@@ -34,11 +35,7 @@ import {
   normalizeFolderTitle,
 } from '@/lib/library-folders'
 import { getKyoboBook } from '@/lib/kyobo'
-import {
-  appendKyoboPreview,
-  appendSearchContext,
-  parseKyoboPreview,
-} from '@/lib/kyobo-preview'
+import { isKyoboSaleId } from '@/lib/kyobo-preview'
 import { setLanguageCookie } from '@/lib/i18n/cookie'
 import { assertRateLimit } from '@/lib/rate-limit'
 import {
@@ -611,49 +608,86 @@ export async function updateLanguageAction(form: FormData) {
   redirect('/settings?status=language-updated')
 }
 
-export async function addKyoboBookAction(form: FormData) {
+export async function addKyoboBookAction(
+  form: FormData,
+): Promise<KyoboAddResult> {
   const user = await requireUser()
   const libraryId = value(form, 'libraryId')
   const q = value(form, 'q').slice(0, 120)
   const source = value(form, 'source') === 'all' ? 'all' : 'kyobo'
-  await requireLibraryAccess(user, libraryId, 'WRITE')
   const saleId = value(form, 'saleId')
-  const book = await getKyoboBook(saleId)
-  kyoboBookUrlSchema.parse(book.sourceUrl)
-  const duplicate = await db.book.findFirst({
-    where: {
-      libraryId,
-      OR: [
-        book.isbn.length === 10 ? { isbn10: book.isbn } : { isbn13: book.isbn },
-        { sourceUrl: book.sourceUrl },
-      ],
-    },
-    select: { id: true },
-  })
-  if (duplicate) {
-    const query = appendSearchContext(new URLSearchParams(), {
-      q,
-      source,
-      libraryId,
-    })
-    const preview = parseKyoboPreview(form)
-    if (preview) appendKyoboPreview(query, preview)
-    query.set('status', 'already-exists')
-    redirect(`/search/kyobo/${book.saleId}?${query}`)
-  }
-  const cover = book.coverUrl
-    ? await downloadCover(book.coverUrl).catch(() => null)
-    : null
+  if (!isKyoboSaleId(saleId)) return { error: 'invalidProduct' }
+  const parsed = parseBookOptions(form)
+  if ('error' in parsed) return parsed
+  const { options } = parsed
   try {
+    await requireLibraryAccess(user, libraryId, 'WRITE')
+  } catch {
+    return { error: 'accessDenied' }
+  }
+  let book: Awaited<ReturnType<typeof getKyoboBook>>
+  try {
+    const library = await db.library.findUniqueOrThrow({
+      where: { id: libraryId },
+      select: { ownerId: true },
+    })
+    if (
+      options.locationTagId &&
+      !(await db.locationTag.findFirst({
+        where: { id: options.locationTagId, userId: library.ownerId },
+        select: { id: true },
+      }))
+    )
+      return { error: 'invalidLocation' }
+    if (
+      options.folderId &&
+      !(await db.libraryFolder.findFirst({
+        where: { id: options.folderId, libraryId },
+        select: { id: true },
+      }))
+    )
+      return { error: 'invalidFolder' }
+  } catch {
+    return { error: 'saveFailed' }
+  }
+  try {
+    book = await getKyoboBook(saleId)
+    kyoboBookUrlSchema.parse(book.sourceUrl)
+  } catch {
+    return { error: 'detailsUnavailable' }
+  }
+  let cover: Awaited<ReturnType<typeof downloadCover>> | null = null
+  try {
+    const duplicate = await db.book.findFirst({
+      where: {
+        libraryId,
+        OR: [
+          book.isbn.length === 10
+            ? { isbn10: book.isbn }
+            : { isbn13: book.isbn },
+          { sourceUrl: book.sourceUrl },
+        ],
+      },
+      select: { id: true },
+    })
+    if (duplicate) {
+      return { error: 'alreadyExists' }
+    }
+    cover = book.coverUrl
+      ? await downloadCover(book.coverUrl).catch(() => null)
+      : null
     await db.$transaction(async (tx) => {
       const genreIds = await upsertGenrePaths(tx, book.genrePaths)
       const created = await tx.book.create({
         data: {
           libraryId,
+          ...options,
+          locationTagId: book.format === 'EBOOK' ? null : options.locationTagId,
           title: book.title,
           authors: book.authors,
           description: book.description,
-          isbn13: book.isbn,
+          isbn10: book.isbn.length === 10 ? book.isbn : null,
+          isbn13: book.isbn.length === 13 ? book.isbn : null,
           sourceUrl: book.sourceUrl,
           format:
             book.format === 'EBOOK' ? BookFormat.EBOOK : BookFormat.PHYSICAL,
@@ -676,11 +710,13 @@ export async function addKyoboBookAction(form: FormData) {
         },
       })
     })
-  } catch (error) {
-    await removeCover(cover?.key)
-    throw error
+  } catch {
+    await removeCovers([cover?.key])
+    return { error: 'saveFailed' }
   }
   revalidatePath(`/libraries/${libraryId}`)
+  revalidatePath('/')
+  revalidatePath('/libraries')
   const query = new URLSearchParams({
     q,
     source,

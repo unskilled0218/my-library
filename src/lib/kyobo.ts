@@ -11,6 +11,7 @@ const SEARCH_URL =
   'https://search.kyobobook.co.kr/srp/api/v1/search/autocomplete/shop'
 const MAX_SEARCH_BYTES = 2_000_000
 const TEST_FIXTURE_QUERY = 'progressive kyobo fixture'
+const failedFixtureProducts = new Set<string>()
 
 function testFixtureEnabled() {
   return (
@@ -238,6 +239,20 @@ export async function searchKyobo(keyword: string) {
     throw new Error('Enter a search keyword')
   if (testFixtureEnabled() && normalized === TEST_FIXTURE_QUERY)
     return [fixtureCandidate()]
+  const deferredFixture = normalized.match(
+    /^deferred kyobo fixture (\d{1,16})$/,
+  )
+  if (testFixtureEnabled() && deferredFixture) {
+    const saleId = `S888${deferredFixture[1]}`
+    return [
+      {
+        ...fixtureCandidate(),
+        saleId,
+        title: 'Deferred Kyobo Test Book',
+        sourceUrl: kyoboProductUrl(saleId),
+      },
+    ]
+  }
   const url = new URL(SEARCH_URL)
   url.searchParams.set('keyword', normalized)
   const response = await fetch(url, {
@@ -253,10 +268,20 @@ export async function searchKyobo(keyword: string) {
 
 export async function getKyoboBook(saleId: string): Promise<KyoboBook> {
   if (!isKyoboSaleId(saleId)) throw new Error('Invalid Kyobo product ID')
-  if (testFixtureEnabled() && saleId === 'S000009999999') {
+  const deferredFixture = /^S888\d{1,16}$/.test(saleId)
+  if (testFixtureEnabled() && (saleId === 'S000009999999' || deferredFixture)) {
     await new Promise((resolve) => setTimeout(resolve, 1_500))
+    if (deferredFixture && !failedFixtureProducts.has(saleId)) {
+      failedFixtureProducts.add(saleId)
+      throw new Error('Deterministic first add attempt failed')
+    }
     return {
       ...fixtureCandidate(),
+      saleId,
+      sourceUrl: kyoboProductUrl(saleId),
+      title: deferredFixture
+        ? 'Deferred Kyobo Test Book'
+        : 'Progressive Kyobo Test Book',
       authors: ['Fixture Author', 'Verified Contributor'],
       description: 'Deterministic canonical details loaded after the preview.',
       coverUrl: null,

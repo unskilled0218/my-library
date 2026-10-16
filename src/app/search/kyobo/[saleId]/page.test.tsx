@@ -1,234 +1,145 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
-import { commonMessages } from '@/lib/i18n/common'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import KyoboDetailPage from '@/app/search/kyobo/[saleId]/page'
 import { searchMessages } from '@/lib/i18n/search'
-import type { KyoboBook } from '@/lib/kyobo'
-import {
-  detailHref,
-  KyoboDetails,
-  KyoboDetailsLoading,
-} from '@/app/search/kyobo/[saleId]/page'
-import { MAX_KYOBO_PREVIEW_QUERY_LENGTH } from '@/lib/kyobo-preview'
 
+const mocks = vi.hoisted(() => ({
+  currentUser: vi.fn(),
+  getLanguage: vi.fn(),
+  destinations: vi.fn(),
+  choices: vi.fn(),
+  getKyoboBook: vi.fn(),
+}))
+vi.mock('@/lib/auth', () => ({ currentUser: mocks.currentUser }))
+vi.mock('@/lib/i18n/server', () => ({ getLanguage: mocks.getLanguage }))
+vi.mock('@/lib/library-search', () => ({
+  writableLibraryDestinations: mocks.destinations,
+}))
+vi.mock('@/lib/db', () => ({ db: { library: { findMany: mocks.choices } } }))
+vi.mock('@/lib/kyobo', () => ({ getKyoboBook: mocks.getKyoboBook }))
 vi.mock('@/app/actions', () => ({ addKyoboBookAction: vi.fn() }))
-
-const book: KyoboBook = {
-  saleId: 'S000001772370',
-  title: 'Canonical Dune',
-  authors: ['Frank Herbert'],
-  isbn: '9791158887544',
-  sourceUrl: 'https://product.kyobobook.co.kr/detail/S000001772370',
-  format: 'PHYSICAL',
-  coverUrl: null,
-  description: 'Canonical product description',
-  genrePaths: [
-    [
-      {
-        name: 'Science fiction',
-        url: 'https://store.kyobobook.co.kr/category/domestic/01',
-      },
-    ],
-  ],
-}
-
-const baseProps = {
-  saleId: book.saleId,
-  context: { q: 'Dune', source: 'kyobo' as const },
-  preview: {
-    title: 'Dune preview',
-    authors: ['Search author'],
-    isbn: '1234567890',
-    format: 'EBOOK' as const,
-    coverUrl: null,
+vi.mock('next/navigation', () => ({
+  notFound: () => {
+    throw new Error('NOT_FOUND')
   },
-  messages: searchMessages.EN,
-  common: commonMessages.EN,
-  duplicate: false,
+}))
+
+const preview = {
+  title: 'Dune preview',
+  author: 'Search author',
+  isbn: '9791158887544',
+  format: 'PHYSICAL',
+  q: 'Dune',
+  source: 'kyobo',
+  libraryId: 'library-2',
+}
+async function renderPage(
+  query: Record<string, string> = preview,
+  saleId = 'S000001772370',
+) {
+  return renderToStaticMarkup(
+    await KyoboDetailPage({
+      params: Promise.resolve({ saleId }),
+      searchParams: Promise.resolve(query),
+    }),
+  )
 }
 
-describe('progressive Kyobo details', () => {
-  it('renders a stable, announced loading state', () => {
-    const html = renderToStaticMarkup(
-      <KyoboDetailsLoading messages={searchMessages.EN} />,
-    )
-
-    expect(html).toContain('role="status"')
-    expect(html).toContain('aria-live="polite"')
-    expect(html).toContain('Loading additional information from Kyobo.')
-    expect(html).toContain('min-h-64')
-  })
-
-  it('renders canonical details and a validated destination after loading', async () => {
-    const element = await KyoboDetails({
-      ...baseProps,
-      result: Promise.resolve({ book, error: false }),
-      signedIn: true,
-      destinations: [
-        { id: 'library-1', name: 'First' },
-        { id: 'library-2', name: 'Second' },
-      ],
-      selectedDestinationId: 'library-2',
-    })
-    const html = renderToStaticMarkup(element)
-
-    expect(html).toContain('Canonical Dune')
-    expect(html).toContain('Canonical product description')
-    expect(html).toContain('Science fiction')
-    expect(html).toContain('Verified on the Kyobo product page')
-    expect(html).toContain('value="library-2" selected=""')
-    expect(html).toContain('name="title" value="Dune preview"')
-  })
-
-  it('shows canonical identity when a direct URL has no preview', async () => {
-    const element = await KyoboDetails({
-      ...baseProps,
-      preview: null,
-      result: Promise.resolve({ book, error: false }),
-      signedIn: false,
-      destinations: [],
-    })
-    const html = renderToStaticMarkup(element)
-
-    expect(html).toContain('Canonical Dune')
-    expect(html).toContain('9791158887544')
-    expect(html).toContain('Format: Physical')
-  })
-
-  it('does not repeat canonical metadata that matches the preview', async () => {
-    const element = await KyoboDetails({
-      ...baseProps,
-      preview: {
-        title: book.title,
-        authors: book.authors,
-        isbn: book.isbn,
-        format: book.format,
-        coverUrl: null,
-        category: 'Science fiction',
-        description: book.description,
-      },
-      result: Promise.resolve({ book, error: false }),
-      signedIn: false,
-      destinations: [],
-    })
-    const html = renderToStaticMarkup(element)
-
-    expect(html).not.toContain('Canonical Dune')
-    expect(html).not.toContain('Frank Herbert')
-    expect(html).not.toContain('Canonical product description')
-    expect(html).not.toContain('9791158887544')
-    expect(html).not.toContain('Science fiction')
-    expect(html).not.toContain('Verified on the Kyobo product page')
-    expect(html).toContain('Sign in to add this book')
-  })
-
-  it('treats missing preview authors as enrichment rather than correction', async () => {
-    const element = await KyoboDetails({
-      ...baseProps,
-      preview: {
-        title: book.title,
-        authors: [],
-        isbn: book.isbn,
-        format: book.format,
-        coverUrl: null,
-        description: book.description,
-      },
-      result: Promise.resolve({ book, error: false }),
-      signedIn: false,
-      destinations: [],
-    })
-    const html = renderToStaticMarkup(element)
-
-    expect(html).toContain('Frank Herbert')
-    expect(html).not.toContain('Verified on the Kyobo product page')
-  })
-
-  it('renders only the continuation of a matching truncated description', async () => {
-    const prefix = 'A'.repeat(300)
-    const enrichedBook = {
-      ...book,
-      description: `${prefix} New canonical ending.`,
-    }
-    const element = await KyoboDetails({
-      ...baseProps,
-      preview: {
-        title: book.title,
-        authors: book.authors,
-        isbn: book.isbn,
-        format: book.format,
-        coverUrl: null,
-        description: prefix,
-        descriptionTruncated: true,
-      },
-      result: Promise.resolve({ book: enrichedBook, error: false }),
-      signedIn: false,
-      destinations: [],
-    })
-    const html = renderToStaticMarkup(element)
-
-    expect(html).toContain('Description continued')
-    expect(html).toContain('New canonical ending.')
-    expect(html).not.toContain(prefix)
-    expect(html).not.toContain('Verified on the Kyobo product page')
-  })
-
-  it('keeps retry URLs within the preview budget', () => {
-    const href = detailHref(
-      book.saleId,
-      { q: '긴 검색어'.repeat(15), source: 'kyobo' },
+describe('deferred Kyobo review page', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    mocks.currentUser.mockResolvedValue({ id: 'user-1' })
+    mocks.getLanguage.mockResolvedValue('EN')
+    mocks.destinations.mockResolvedValue([
+      { id: 'library-1', name: 'First' },
+      { id: 'library-2', name: 'Shared editor library' },
+    ])
+    mocks.choices.mockResolvedValue([
       {
-        title: '긴 제목'.repeat(30),
-        authors: Array.from({ length: 8 }, () => '긴 저자'.repeat(20)),
-        isbn: book.isbn,
-        format: book.format,
-        coverUrl: null,
-        description: '긴 책 소개'.repeat(100),
+        id: 'library-1',
+        owner: { locationTags: [{ id: 'mine', name: 'My shelf' }] },
+        folders: [],
       },
-      true,
-    )
-    const url = new URL(href, 'https://example.test')
-
-    expect(url.search.slice(1).length).toBeLessThanOrEqual(
-      MAX_KYOBO_PREVIEW_QUERY_LENGTH,
-    )
-    expect(url.searchParams.get('retry')).toBeTruthy()
-    expect(url.searchParams.get('isbn')).toBe(book.isbn)
+      {
+        id: 'library-2',
+        owner: { locationTags: [{ id: 'owners', name: 'Owner shelf' }] },
+        folders: [
+          { id: 'nested', title: 'Child', parentId: 'parent' },
+          { id: 'parent', title: 'Parent', parentId: null },
+        ],
+      },
+    ])
   })
 
-  it('keeps failure navigation usable without rendering an add form', async () => {
-    const element = await KyoboDetails({
-      ...baseProps,
-      result: Promise.resolve({ book: null, error: true }),
-      signedIn: true,
-      destinations: [{ id: 'library-1', name: 'First' }],
-      selectedDestinationId: 'library-1',
-    })
-    const html = renderToStaticMarkup(element)
-
-    expect(html).toContain('Book details are unavailable.')
-    expect(html).toContain('Try again')
-    expect(html).toContain('Back to results')
-    expect(html).not.toContain('<form')
+  it('renders the preview, source and bounded return context without resolving full details', async () => {
+    const html = await renderPage()
+    expect(html).toContain('Dune preview')
+    expect(html).toContain('Search author')
+    expect(html).toContain(
+      'https://product.kyobobook.co.kr/detail/S000001772370',
+    )
+    expect(html).toContain(
+      '/search?q=Dune&amp;source=kyobo&amp;libraryId=library-2',
+    )
+    expect(html).toContain('value="library-2" selected=""')
+    expect(html).toContain('Owner shelf')
+    expect(html).toContain('— Child')
+    expect(html).not.toContain('My shelf')
+    expect(mocks.choices).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ['library-1', 'library-2'] } },
+      }),
+    )
+    expect(mocks.getKyoboBook).not.toHaveBeenCalled()
   })
 
-  it('shows sign-in and no-destination states without an add form', async () => {
-    const anonymous = await KyoboDetails({
-      ...baseProps,
-      result: Promise.resolve({ book, error: false }),
-      signedIn: false,
-      destinations: [],
-    })
-    const noDestination = await KyoboDetails({
-      ...baseProps,
-      result: Promise.resolve({ book, error: false }),
-      signedIn: true,
-      destinations: [],
-    })
+  it.each(['KO', 'EN'] as const)(
+    'allows a preview-free direct link in %s without scraping',
+    async (language) => {
+      mocks.getLanguage.mockResolvedValue(language)
+      const html = await renderPage({ libraryId: 'unrelated' })
+      expect(html).toContain(searchMessages[language].directLinkPreview)
+      expect(html).toContain('id="kyobo-add-book-form"')
+      expect(html).toContain('name="saleId" value="S000001772370"')
+      expect(html).toContain('value="library-1" selected=""')
+      expect(html).not.toContain('unrelated')
+      expect(mocks.getKyoboBook).not.toHaveBeenCalled()
+    },
+  )
 
-    expect(renderToStaticMarkup(anonymous)).toContain(
-      'Sign in to add this book',
-    )
-    expect(renderToStaticMarkup(noDestination)).toContain(
-      'You need an owned or editable library',
-    )
+  it('shows sign-in guidance without querying private destination options or scraping', async () => {
+    mocks.currentUser.mockResolvedValue(null)
+    const html = await renderPage()
+    expect(html).toContain('Sign in to add this book')
+    expect(html).not.toContain('id="kyobo-add-book-form"')
+    expect(mocks.destinations).not.toHaveBeenCalled()
+    expect(mocks.choices).not.toHaveBeenCalled()
+    expect(mocks.getKyoboBook).not.toHaveBeenCalled()
+  })
+
+  it('shows the no-writable-library state without option queries or scraping', async () => {
+    mocks.destinations.mockResolvedValue([])
+    const html = await renderPage()
+    expect(html).toContain('You need an owned or editable library')
+    expect(html).not.toContain('id="kyobo-add-book-form"')
+    expect(mocks.choices).not.toHaveBeenCalled()
+    expect(mocks.getKyoboBook).not.toHaveBeenCalled()
+  })
+
+  it('rejects invalid product IDs before loading user data', async () => {
+    await expect(renderPage({}, '../invalid')).rejects.toThrow('NOT_FOUND')
+    expect(mocks.currentUser).not.toHaveBeenCalled()
+    expect(mocks.getKyoboBook).not.toHaveBeenCalled()
+  })
+
+  it('keeps legacy duplicate feedback and discards oversized preview fields', async () => {
+    const html = await renderPage({
+      ...preview,
+      title: 'X'.repeat(1000),
+      status: 'already-exists',
+    })
+    expect(html).toContain(searchMessages.EN.alreadyExists)
+    expect(html).not.toContain('X'.repeat(1000))
+    expect(mocks.getKyoboBook).not.toHaveBeenCalled()
   })
 })

@@ -130,7 +130,7 @@ test('mobile ISBN scanner is compact and viewport-centered', async ({
   await expect(dialog).toHaveCount(0)
 })
 
-test('Kyobo details load progressively on a dedicated page', async ({
+test('Kyobo full information is retrieved only when adding from the review page', async ({
   page,
 }) => {
   const loginId = `kyobo-${Date.now()}-${test.info().project.name}`
@@ -161,20 +161,11 @@ test('Kyobo details load progressively on a dedicated page', async ({
   await expect(
     page.getByRole('heading', { name: 'Progressive Kyobo Test Book' }),
   ).toBeVisible()
-  await expect(page.getByRole('status')).toContainText(
-    '교보문고에서 추가 정보를 불러오고 있습니다.',
-  )
   await expect(
-    page.getByText('Deterministic canonical details loaded after the preview.'),
-  ).toBeVisible()
+    page.getByText('Verified Contributor', { exact: false }),
+  ).toHaveCount(0)
+  await expect(page.getByText('Fixture Genre')).toHaveCount(0)
   await expect(page.locator('#kyobo-details-loading')).toHaveCount(0)
-  await expect(page.getByText('Fixture Genre')).toBeVisible()
-  await expect(
-    page.getByRole('heading', { name: 'Progressive Kyobo Test Book' }),
-  ).toHaveCount(1)
-  await expect(
-    page.getByText('Deterministic canonical details loaded after the preview.'),
-  ).toHaveCount(1)
   await expect(page.getByRole('button', { name: '서재에 추가' })).toBeVisible()
   expect(
     await page.evaluate(
@@ -186,6 +177,31 @@ test('Kyobo details load progressively on a dedicated page', async ({
 
   await page.goBack()
   await expect(candidate).toBeVisible()
+  await candidate.click()
+  const addForm = page.locator('#kyobo-add-book-form')
+  await addForm.getByLabel('소유 상태').selectOption('DONT_HAVE')
+  await addForm.getByLabel('평점').selectOption('4')
+  await addForm.getByLabel('개인 메모').fill('Added with my options')
+  await addForm.getByRole('button', { name: '서재에 추가' }).click()
+  await expect(page.getByRole('status')).toContainText(
+    '교보문고에서 책 정보를 가져와 추가하고 있습니다.',
+  )
+  await expect(page).toHaveURL(/\/search\?.*status=added/)
+  await page.getByRole('link', { name: '서재로 이동', exact: true }).click()
+  await page
+    .getByRole('heading', { name: 'Progressive Kyobo Test Book' })
+    .click()
+  await expect(
+    page.getByText('Fixture Author, Verified Contributor'),
+  ).toBeVisible()
+  await expect(page.getByText('Fixture Genre', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('소유 상태')).toHaveValue('DONT_HAVE')
+  await expect(page.getByLabel('평점')).toHaveValue('4')
+  await expect(page.getByLabel('개인 메모')).toHaveValue(
+    'Added with my options',
+  )
+  await expect(page.getByLabel('제목', { exact: true })).not.toBeEditable()
+  await expect(page.getByLabel('저자', { exact: true })).not.toBeEditable()
 })
 
 test('a user can register and receives a default library', async ({ page }) => {
