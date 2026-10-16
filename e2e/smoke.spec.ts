@@ -53,15 +53,16 @@ async function importTestBook(
   await page.goto(libraryHref)
 }
 
-test('landing page is usable', async ({ page }) => {
+test('signed-out front page redirects to a usable login page', async ({
+  page,
+}) => {
   await page.goto('/')
+  await expect(page).toHaveURL(/\/login$/)
   await expect(page.locator('html')).toHaveAttribute('lang', 'ko-KR')
-  await expect(
-    page.getByRole('heading', {
-      name: '모든 책에는 자리와 이야기가 있습니다.',
-    }),
-  ).toBeVisible()
-  await expect(page.getByRole('link', { name: '서재 시작하기' })).toBeVisible()
+  await expect(page.locator('#user-login-page-form')).toBeVisible()
+  await expect(page.getByLabel('로그인 ID')).toBeVisible()
+  await expect(page.getByLabel('비밀번호')).toBeVisible()
+  await expect(page.getByRole('button', { name: '계속' })).toBeVisible()
   const headerSearch = page.locator('#header-search-form')
   await expect(headerSearch.getByLabel('책 검색')).toBeVisible()
   await expect(headerSearch.locator('#header-search-source')).toHaveText(
@@ -212,6 +213,7 @@ test('a user can register and receives a default library', async ({ page }) => {
   await expect(page.getByText('Display language updated.')).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await page.getByRole('link', { name: 'MY / LIBRARY' }).click()
+  await expect(page).toHaveURL('/')
   await expect(
     page.getByRole('heading', { name: 'Your libraries' }),
   ).toBeVisible()

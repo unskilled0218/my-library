@@ -39,7 +39,7 @@ export default async function RootLayout({
               className="mx-auto grid max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-4 md:px-8"
             >
               <Link
-                href={user ? '/libraries' : '/'}
+                href="/"
                 className="font-serif text-2xl font-black tracking-tight"
               >
                 MY / LIBRARY

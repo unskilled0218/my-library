@@ -226,6 +226,7 @@ export async function createLibraryAction(form: FormData) {
     },
   })
   revalidatePath('/libraries')
+  revalidatePath('/')
   redirect(`/libraries/${library.id}`)
 }
 
@@ -243,6 +244,7 @@ export async function updateLibraryAction(form: FormData) {
   revalidatePath(`/libraries/${libraryId}`)
   revalidatePath(`/libraries/${libraryId}/settings`)
   revalidatePath('/libraries')
+  revalidatePath('/')
 }
 
 export async function createFolderAction(form: FormData) {
@@ -455,6 +457,8 @@ export async function deleteLibraryAction(form: FormData) {
   await removeBookFiles(
     deleting.books.flatMap((book) => book.files.map((file) => file.storageKey)),
   )
+  revalidatePath('/libraries')
+  revalidatePath('/')
   redirect('/libraries')
 }
 
