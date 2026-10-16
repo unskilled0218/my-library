@@ -45,8 +45,9 @@ Replace the promotional front page with the authenticated user's existing librar
 - Assert the creation form remains above the cards with its input constraints and submit control. Add route-level coverage proving both `/` and `/libraries` use the shared protected implementation.
 - Extend action tests, using dedicated test files if existing mocks would become unwieldy, to verify successful create, update, and delete invalidate both list routes while preserving existing redirects and authorization behavior.
 - Replace the obsolete promotional-heading assertions in `e2e/smoke.spec.ts` with signed-out `/` redirect and usable login/header-search assertions. Keep the mobile ISBN-scanner test working on the redirected login page.
-- Extend the existing registration flow to visit `/`, assert the URL remains `/`, show the default library and creation controls, create a uniquely named library from the root form, follow the existing detail redirect, and verify the card appears when returning home. Confirm `/libraries` still renders the same list.
-- Preserve the language-switch regression and assert the brand link returns to `/` with the English list visible. Check desktop and mobile layouts remain free of horizontal overflow.
+- Add a focused front-page browser scenario with registration as setup: visit `/`, assert the URL remains `/`, show the default library and creation controls, create a uniquely named library from the root form, follow the existing detail redirect, and use the brand link to verify the card appears when returning home. Confirm `/libraries` still renders the same list.
+- Keep existing settings, filtering, and view-persistence assertions in their current registration scenario rather than extending it with the new front-page checks. Reuse only a small registration helper if needed. Preserve the language-switch regression in its existing flow and assert the brand link returns to `/` with the English list visible. Check desktop and mobile layouts remain free of horizontal overflow.
+- Add a separate browser lifecycle scenario for list freshness: register a user, visit `/` to establish previously visited list state, open an owned test library's settings, rename it and change its description, then return through the brand link and assert the updated card text. Delete that library through the existing confirmation flow, assert the preserved `/libraries` redirect, then use the brand link to return to `/` and assert the card is absent. Use client navigation for return-home checks without full reloads so the test exercises cached list state.
 - Add a two-user browser regression using isolated contexts: an unrelated private library is absent from the other user's root list; sharing it as a viewer makes its card and viewer label visible, while the creation form remains available for that user's own libraries.
 
 ### 5. Validate the implementation
@@ -63,7 +64,7 @@ Replace the promotional front page with the authenticated user's existing librar
 - Signed-out visitors to either list route are redirected to `/login` without querying libraries. Administrator-only sessions do not grant user-library access.
 - The existing localized creation form stays above the cards, retains its limits, and creates an owned library using the existing action and detail redirect.
 - `/libraries` remains a supported list route, and the site brand opens `/`.
-- Creating, renaming, or deleting a library does not leave stale cards when returning to the root list.
+- Creating, renaming, or deleting a library does not leave stale cards when returning to the root list. Browser checks verify newly created cards, updated names and descriptions, and deleted-card absence through client navigation without full reloads.
 - Korean and English rendering, header search, and responsive desktop/mobile behavior remain functional.
 - Relevant automated checks pass, or concrete environment blockers are recorded.
 
@@ -73,5 +74,6 @@ Replace the promotional front page with the authenticated user's existing librar
 - Keep `/libraries` as an equivalent route, not a redirect, to avoid changing existing bookmarks, navigation destinations, and authentication tests beyond this task's scope.
 - Share one implementation rather than copying the page or importing one App Router page into another. This keeps authorization, query scope, and creation controls consistent.
 - Mocked query assertions protect filter construction but do not prove database isolation. The two-user browser regression verifies visibility against real persisted memberships.
+- Keep front-page and lifecycle browser scenarios focused rather than adding unrelated assertions to the existing registration scenario. Mocked revalidation assertions verify action boundaries; browser return-home checks verify actual list freshness.
 - Root-page caching is newly relevant. Limit invalidation changes to library metadata and lifecycle actions needed by this task, avoiding a broader cache refactor.
 - The working tree already contains a user change in `next-env.d.ts`. Preserve it and exclude it from task commits. Do not modify `todo.md` or implementation code during this planning task.
