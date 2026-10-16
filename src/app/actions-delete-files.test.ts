@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   libraryDelete: vi.fn(),
   auditCreate: vi.fn(),
   queryRaw: vi.fn(),
+  revalidatePath: vi.fn(),
   removeCover: vi.fn(),
   removeBookFile: vi.fn(),
   redirect: vi.fn((url: string) => {
@@ -21,7 +22,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
+vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath }))
 vi.mock('@/lib/auth', () => ({
   requireUser: mocks.requireUser,
   currentAdmin: vi.fn(),
@@ -129,5 +130,21 @@ describe('book file deletion cleanup', () => {
       'two.pdf',
     ])
     expect(mocks.removeCover).toHaveBeenCalledWith('folder.jpg')
+    expect(mocks.revalidatePath.mock.calls).toEqual([['/libraries'], ['/']])
+    expect(mocks.revalidatePath.mock.invocationCallOrder[1]).toBeLessThan(
+      mocks.redirect.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('does not delete or invalidate when owner access is denied', async () => {
+    mocks.requireLibraryAccess.mockRejectedValueOnce(new Error('Access denied'))
+    const form = new FormData()
+    form.set('libraryId', 'library-1')
+
+    await expect(deleteLibraryAction(form)).rejects.toThrow('Access denied')
+
+    expect(mocks.libraryDelete).not.toHaveBeenCalled()
+    expect(mocks.revalidatePath).not.toHaveBeenCalled()
+    expect(mocks.redirect).not.toHaveBeenCalled()
   })
 })
