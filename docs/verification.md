@@ -27,9 +27,18 @@ If Chromium is missing, install it with `npx playwright install chromium` throug
 
 ## Live Kyobo diagnostic
 
-Live Kyobo access is not part of the normal test suite. Run the explicit diagnostic with:
+Live Kyobo access is not part of the normal test suite. Compare normalized input, autocomplete/fallback document counts, verified matches, and the public website URL with fixtures disabled:
 
 ```bash
-npm run kyobo:probe -- 9791157107223
+KYOBO_TEST_FIXTURE=0 npm run kyobo:probe -- --compare-search 9780132350884
+KYOBO_TEST_FIXTURE=0 npm run kyobo:probe -- --compare-search 9791157107223
+```
+
+The comparison does not fetch product detail pages or require Chromium. For ISBNs, a full-search fallback runs only after an autocomplete miss or error. Each upstream request has an eight-second timeout and a two-megabyte body limit, with at most two requests total. The report retains failed stage context even when a later source recovers. A verified empty response is distinct from an unavailable or unrecognized response.
+
+The ordinary probe also searches without fetching full product metadata. Request product details explicitly when diagnosing the add-time scraper:
+
+```bash
+npm run kyobo:probe -- --details 9791157107223
 npm run kyobo:probe -- "너의 췌장을 먹고 싶어"
 ```

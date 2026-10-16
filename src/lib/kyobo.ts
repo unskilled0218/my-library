@@ -5,7 +5,12 @@ import {
   isKyoboSaleId,
   kyoboProductUrl,
 } from '@/lib/kyobo-preview'
-import { normalizeIsbn } from '@/lib/validation'
+import { isbnIdentity, isSameIsbn } from '@/lib/isbn'
+import {
+  cleanCodeSearchHtml,
+  emptyAutocompleteResponse,
+  KYOBO_SEARCH_FIXTURE_ISBN,
+} from '@/lib/kyobo-search-fixtures'
 
 const SEARCH_URL =
   'https://search.kyobobook.co.kr/srp/api/v1/search/autocomplete/shop'
@@ -111,13 +116,12 @@ function mapDocument(input: unknown): BookCandidate | null {
   if (!input || typeof input !== 'object') return null
   const document = input as SearchDocument
   const title = boundedText(document.CMDT_NAME, 240)
-  const isbn = normalizeIsbn(
+  const isbn = isbnIdentity(
     typeof document.CMDTCODE === 'string' ? document.CMDTCODE : '',
   )
   const saleId =
     typeof document.SALE_CMDTID === 'string' ? document.SALE_CMDTID : undefined
-  if (!title || !/^(?:\d{10}|\d{13})$/.test(isbn) || !isKyoboSaleId(saleId))
-    return null
+  if (!title || !isbn || !isKyoboSaleId(saleId)) return null
   const fields =
     typeof document.TOT_RELATE_HTML_LIST === 'string'
       ? document.TOT_RELATE_HTML_LIST.split('$@')
@@ -152,7 +156,7 @@ function mapDocument(input: unknown): BookCandidate | null {
   }
 }
 
-export function parseSearchResponse(body: string, keyword: string) {
+function autocompleteResults(body: string, keyword: string) {
   const payload = JSON.parse(body) as {
     resultCode?: string
     data?: { returnCode?: number; resultDocuments?: unknown[] }
@@ -167,16 +171,229 @@ export function parseSearchResponse(body: string, keyword: string) {
   const mapped = payload.data.resultDocuments
     .map(mapDocument)
     .filter((item): item is BookCandidate => Boolean(item))
-  const uniqueCandidates = new Map<string, BookCandidate>()
-  mapped.forEach((candidate) => {
-    if (!uniqueCandidates.has(candidate.saleId))
-      uniqueCandidates.set(candidate.saleId, candidate)
+  const results = matchingCandidates(mapped, keyword)
+  return {
+    results,
+    documentCount: payload.data.resultDocuments.length,
+    acceptedCount: mapped.length,
+    rejectedCount: payload.data.resultDocuments.length - mapped.length,
+    matchingCount: results.length,
+  }
+}
+
+export function parseSearchResponse(body: string, keyword: string) {
+  return autocompleteResults(body, keyword).results
+}
+
+function matchingCandidates(candidates: BookCandidate[], keyword: string) {
+  const byId = new Map<string, BookCandidate>()
+  for (const candidate of candidates) {
+    if (!byId.has(candidate.saleId)) byId.set(candidate.saleId, candidate)
+  }
+  const unique = [...byId.values()]
+  return isbnIdentity(keyword)
+    ? unique.filter((candidate) => isSameIsbn(candidate.isbn, keyword))
+    : unique
+}
+
+function websiteResults(body: string, keyword: string) {
+  const $ = load(body)
+  const root = $('#result_contents')
+  const count = root.attr('data-total-count')
+  if (root.length !== 1 || !count || !/^\d+$/.test(count))
+    throw new Error('Kyobo returned an unrecognized full-search page')
+  const cards = root.find('#shopData_list .prod_list > .prod_item')
+  const candidates: BookCandidate[] = []
+  cards.each((_, element) => {
+    const card = $(element)
+    const identity = card.find('input[data-pid][data-bid][data-name]').first()
+    const saleId = identity.attr('data-pid')
+    const isbn = isbnIdentity(identity.attr('data-bid') ?? '')
+    const title = boundedText(identity.attr('data-name'), 240)
+    if (!isKyoboSaleId(saleId) || !isbn || !title) return
+    const href = card.find('a.prod_info').first().attr('href')
+    if (
+      href !== kyoboProductUrl(saleId) &&
+      href !== `https://ebook-product.kyobobook.co.kr/dig/epd/ebook/${saleId}`
+    )
+      return
+    const cover = card.find('img').first().attr('src')
+    candidates.push({
+      saleId,
+      isbn,
+      title,
+      sourceUrl: kyoboProductUrl(saleId),
+      format: saleId.startsWith('E') ? 'EBOOK' : 'PHYSICAL',
+      authors: card
+        .find('a.author')
+        .map((__, author) => boundedText($(author).text(), 240))
+        .get()
+        .filter((author): author is string => Boolean(author)),
+      publisher: boundedText(
+        card.find('.prod_publish a.text').first().text(),
+        120,
+      ),
+      coverUrl: isAllowedKyoboCoverUrl(cover) ? cover : undefined,
+    })
   })
-  const candidates = Array.from(uniqueCandidates.values())
-  const normalizedKeyword = normalizeIsbn(keyword)
-  return /^(?:\d{10}|\d{13})$/.test(normalizedKeyword)
-    ? candidates.filter((candidate) => candidate.isbn === normalizedKeyword)
-    : candidates
+  const results = matchingCandidates(candidates, keyword)
+  const rejectedCount = cards.length - candidates.length
+  if (
+    (Number(count) > 0 && !cards.length) ||
+    (rejectedCount > 0 && !results.length) ||
+    (Number(count) === 0 && cards.length > 0)
+  ) {
+    throw new Error(
+      'Kyobo full-search product identities could not be verified',
+    )
+  }
+  return {
+    results,
+    documentCount: cards.length,
+    acceptedCount: candidates.length,
+    rejectedCount,
+    matchingCount: results.length,
+  }
+}
+
+export function parseWebsiteSearchResponse(body: string, keyword: string) {
+  return websiteResults(body, keyword).results
+}
+
+export type KyoboSearchStage = {
+  source: 'autocomplete' | 'website'
+  url: string
+  documentCount?: number
+  acceptedCount?: number
+  rejectedCount?: number
+  matchingCount?: number
+  error?: string
+}
+
+export type KyoboSearchReport = {
+  keyword: string
+  normalizedKeyword: string
+  websiteUrl: string
+  stages: KyoboSearchStage[]
+  results: BookCandidate[]
+  error?: string
+}
+
+function websiteSearchUrl(keyword: string) {
+  const url = new URL('https://search.kyobobook.co.kr/search')
+  url.search = new URLSearchParams({
+    keyword,
+    gbCode: 'TOT',
+    target: 'total',
+  }).toString()
+  return url
+}
+
+async function searchResponseText(
+  url: URL,
+  source: KyoboSearchStage['source'],
+) {
+  if (
+    testFixtureEnabled() &&
+    url.searchParams.get('keyword') === KYOBO_SEARCH_FIXTURE_ISBN
+  ) {
+    return source === 'autocomplete'
+      ? emptyAutocompleteResponse
+      : cleanCodeSearchHtml
+  }
+  const response = await fetch(url, {
+    redirect: 'error',
+    signal: AbortSignal.timeout(8_000),
+    headers: {
+      Accept: source === 'autocomplete' ? 'application/json' : 'text/html',
+    },
+  })
+  if (!response.ok) {
+    await response.body?.cancel().catch(() => {})
+    throw new Error(`Kyobo ${source} search failed (${response.status})`)
+  }
+  const reader = response.body?.getReader()
+  if (!reader) throw new Error(`Kyobo ${source} search returned an empty body`)
+  const decoder = new TextDecoder()
+  let bytes = 0
+  let body = ''
+  try {
+    if (Number(response.headers.get('content-length')) > MAX_SEARCH_BYTES)
+      throw new Error('Kyobo search response is too large')
+    while (true) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      bytes += chunk.value.byteLength
+      if (bytes > MAX_SEARCH_BYTES)
+        throw new Error('Kyobo search response is too large')
+      body += decoder.decode(chunk.value, { stream: true })
+    }
+    return body + decoder.decode()
+  } finally {
+    await reader.cancel().catch(() => {})
+    reader.releaseLock()
+  }
+}
+
+export async function probeKyoboSearch(
+  keyword: string,
+): Promise<KyoboSearchReport> {
+  const trimmed = keyword.trim()
+  if (!trimmed || trimmed.length > 120)
+    throw new Error('Enter a search keyword')
+  const isbn = isbnIdentity(trimmed)
+  const normalized = isbn ?? trimmed
+  const website = websiteSearchUrl(normalized)
+  const report: KyoboSearchReport = {
+    keyword,
+    normalizedKeyword: normalized,
+    websiteUrl: website.toString(),
+    stages: [],
+    results: [],
+  }
+  const autocomplete = new URL(SEARCH_URL)
+  autocomplete.searchParams.set('keyword', normalized)
+  const sources = isbn
+    ? (['autocomplete', 'website'] as const)
+    : (['autocomplete'] as const)
+  for (const source of sources) {
+    const url = source === 'autocomplete' ? autocomplete : website
+    try {
+      const body = await searchResponseText(url, source)
+      const parsed =
+        source === 'autocomplete'
+          ? autocompleteResults(body, normalized)
+          : websiteResults(body, normalized)
+      const { results, ...counts } = parsed
+      report.stages.push({ source, url: url.toString(), ...counts })
+      if (results.length || source === 'website' || !isbn) {
+        if (!results.length && counts.rejectedCount > 0)
+          throw new Error(
+            'Kyobo search product identities could not be verified',
+          )
+        report.results = results
+        return report
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? [
+              error.message,
+              error.cause instanceof Error ? error.cause.message : undefined,
+            ]
+              .filter(Boolean)
+              .join(': ')
+          : String(error)
+      const stage = report.stages.at(-1)
+      if (stage?.source === source) stage.error = message
+      else report.stages.push({ source, url: url.toString(), error: message })
+    }
+  }
+  report.error = `Kyobo search failed: ${report.stages
+    .filter((stage) => stage.error)
+    .map((stage) => `${stage.source}: ${stage.error}`)
+    .join('; ')}`
+  return report
 }
 
 export function parseProductHtml(html: string, saleId: string): KyoboBook {
@@ -253,17 +470,9 @@ export async function searchKyobo(keyword: string) {
       },
     ]
   }
-  const url = new URL(SEARCH_URL)
-  url.searchParams.set('keyword', normalized)
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(8_000),
-    headers: { Accept: 'application/json' },
-  })
-  if (!response.ok) throw new Error(`Kyobo search failed (${response.status})`)
-  const body = await response.text()
-  if (Buffer.byteLength(body) > MAX_SEARCH_BYTES)
-    throw new Error('Kyobo search response is too large')
-  return parseSearchResponse(body, normalized)
+  const report = await probeKyoboSearch(keyword)
+  if (report.error) throw new Error(report.error)
+  return report.results
 }
 
 export async function getKyoboBook(saleId: string): Promise<KyoboBook> {
