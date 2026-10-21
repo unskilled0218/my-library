@@ -8,6 +8,7 @@
   - [4. Connect the add form and progress panel](#4-connect-the-add-form-and-progress-panel)
   - [5. Verify navigation, recovery, and existing import behavior](#5-verify-navigation-recovery-and-existing-import-behavior)
 - [Acceptance Criteria](#acceptance-criteria)
+- [Plan Review Resolution](#plan-review-resolution)
 - [Risks And Decisions](#risks-and-decisions)
 
 ## scope
@@ -63,6 +64,7 @@ Use the existing Next.js server, import logic, and root layout. This task covers
 - Add a browser navigation test with an explicit gate before the intercepted POST is forwarded to the real endpoint. Wait for the gate to be entered, confirm a pending task, submit the actual header search, verify query/source and retained task state on the search page, then navigate to a library and submit its real query/filter form while the gate remains closed. Release the gate, forward the original POST, and assert its real result appears on the current page and its book exists in the destination. Use a guarded metadata-retrieval pause instead if testing work already executing on the server; delaying fulfillment after `route.fetch()` completes is insufficient for this pending-work check. Synchronize with gate entry/release promises, avoid timing-only sleeps, and release gates in cleanup.
 - Add a separate browser reconciliation test that forwards the first POST to the real endpoint, verifies it committed, then drops its response. After an explicit user retry, verify the real endpoint returns `existing`, the panel links to the authorized saved book and no longer offers retry, exactly one book and creation audit exist, and original options remain unchanged. Delaying or dropping a response after commit is appropriate for this lost-response scenario, not as proof of pending import work.
 - Exercise failure and retry after navigating away, multiple additions, panel collapse/reopen, Korean and English text, and mobile overflow using deterministic fixtures. Preserve existing fixture guards if a metadata gate is needed; do not expose test controls in production.
+- After implementation, perform the focused architecture check recommended in `3-plan-review.md`: confirm the provider remains mounted across header search, library search/filter submission, and client-side links; confirm identity changes clear snapshots and prevent late responses from restoring another user's tasks; and confirm client components import only client-safe result types rather than the server-only import service. Record the outcome with implementation verification results.
 - Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, and focused Prettier checks for changed files. Run `npx playwright test e2e/kyobo-options.spec.ts` plus any new background-add spec on desktop and mobile with `PLAYWRIGHT_DATABASE_URL` pointing to a migrated disposable database as required by `playwright.config.ts`.
 
 ## Acceptance Criteria
@@ -76,6 +78,16 @@ Use the existing Next.js server, import logic, and root layout. This task covers
 - Browser navigation coverage gates the real request before forwarding or pauses metadata retrieval, uses actual app search submissions while pending, and verifies real persistence after release. A separate committed-but-lost-response case verifies existing-book reconciliation.
 - The status interface works with keyboard navigation, screen-reader announcements, Korean and English locales, and mobile layouts.
 - Existing permission, validation, duplicate, transaction, cover-cleanup, and manual-entry behavior continues to pass relevant checks.
+
+## Plan Review Resolution
+
+The three warnings in `3-plan-review.md` are addressed in the planned work below. These are design resolutions; runtime acceptance remains subject to implementation and verification.
+
+| Review finding | Planned resolution | Required verification |
+| --- | --- | --- |
+| R5 — Native search destroys background state | Steps 3–4 keep the provider in the shared layout and convert header and library search/filter submissions to client-side navigation while preserving submitted values and native fallback. | Step 5 submits the actual search forms while the real request is gated, verifies retained task state, and checks provider and identity lifetimes after implementation. |
+| R6 — Unknown outcomes lack terminal reconciliation | Steps 1–4 return authorized existing-book IDs, preserve the compatibility action's duplicate-error contract, and terminate explicit retry with view/edit links and an explanation that retry options were not applied. | Step 5 commits a real request, drops its response, retries, and verifies one book, one creation audit, unchanged original options, and a non-retryable existing-book result. |
+| T5 — A held response does not prove pending import work | Step 5 separates deferred client lifecycle tests, a browser gate before forwarding the real POST (or a guarded metadata pause), and the committed-but-lost-response scenario. | Navigate and submit real search forms while the gate is closed; release it and verify the real result and persisted book. Retain the option-persistence assertions in `e2e/kyobo-options.spec.ts`. |
 
 ## Risks And Decisions
 
