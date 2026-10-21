@@ -1,0 +1,13 @@
+[
+  {
+    "date": "2026-10-21",
+    "mode": "Health Dashboard",
+    "score": 95,
+    "findings": {
+      "critical": 0,
+      "warning": 3,
+      "suggestion": 0
+    },
+    "scope": "Plan review: tasks/16-background-book-add/2-plan.md; proposed design only, not whole-project health"
+  }
+]
