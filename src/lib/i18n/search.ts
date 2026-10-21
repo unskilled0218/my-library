@@ -65,10 +65,12 @@ export const searchMessages = defineMessages(
     retryAdd: '다시 추가',
     editAdd: '옵션 수정',
     viewEditBook: '책 보기 및 수정',
-    outcomeUnknown: '추가 결과를 확인할 수 없습니다. 서재를 확인하거나 직접 다시 시도하세요.',
+    outcomeUnknown:
+      '추가 결과를 확인할 수 없습니다. 서재를 확인하거나 직접 다시 시도하세요.',
     signInRequired: '로그인이 필요합니다.',
     invalidRequest: '요청을 처리할 수 없습니다. 페이지를 다시 열고 시도하세요.',
-    retryOptionsNotApplied: '이미 저장된 책입니다. 이번 요청의 옵션은 적용되지 않았습니다. 책을 열어 수정하세요.',
+    retryOptionsNotApplied:
+      '이미 저장된 책입니다. 이번 요청의 옵션은 적용되지 않았습니다. 책을 열어 수정하세요.',
     invalidProduct: '올바른 교보문고 상품을 선택하세요.',
     accessDenied: '선택한 서재에 책을 추가할 권한이 없습니다.',
     invalidOwnership: '올바른 소유 상태를 선택하세요.',
@@ -166,10 +168,13 @@ export const searchMessages = defineMessages(
     retryAdd: 'Retry addition',
     editAdd: 'Edit options',
     viewEditBook: 'View and edit book',
-    outcomeUnknown: 'The save outcome is unknown. Check the library or retry explicitly.',
+    outcomeUnknown:
+      'The save outcome is unknown. Check the library or retry explicitly.',
     signInRequired: 'Sign in to continue.',
-    invalidRequest: 'The request could not be processed. Reopen the page and try again.',
-    retryOptionsNotApplied: 'This book was already saved. Options from this request were not applied. Open the book to edit them.',
+    invalidRequest:
+      'The request could not be processed. Reopen the page and try again.',
+    retryOptionsNotApplied:
+      'This book was already saved. Options from this request were not applied. Open the book to edit them.',
     invalidProduct: 'Choose a valid Kyobo product.',
     accessDenied: 'You do not have permission to add books to this library.',
     invalidOwnership: 'Choose a valid ownership state.',

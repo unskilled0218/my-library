@@ -36,6 +36,8 @@ PLAYWRIGHT_DATABASE_URL="postgresql://library:library@library-dev-db:5432/librar
 
 Create and migrate that disposable database first, or supply another disposable URL for your environment. The navigation regression gates the POST before forwarding it to the real endpoint, submits the actual header and library search forms, and checks task survival and real persistence after release. It uses explicit synchronization rather than a sleep or a delayed success notification. A separate case forwards a real committed import and drops its response, then verifies that an explicit retry links to the existing book without another creation audit or changed options. Provider tests use deferred mock responses for out-of-order completion, rapid submission guards, account changes, retained options, authentication failures, and malformed responses; those tests do not stand in for database persistence checks.
 
+The navigation case also checks folder scope and reading-state filter preservation. An independent-additions case holds the first request while a second destination saves, then releases the first request into a deterministic retrieval failure and retries its retained options after navigation. Both configured projects run these cases. A database startup failure prevents browser acceptance verification; passing Vitest or a production build does not replace those persistence checks.
+
 ## Live Kyobo diagnostic
 
 Live Kyobo access is not part of the normal test suite. Compare normalized input, autocomplete/fallback document counts, verified matches, and the public website URL with fixtures disabled:

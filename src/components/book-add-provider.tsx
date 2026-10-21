@@ -165,7 +165,12 @@ function BookAddSession({
     <Context.Provider value={{ tasks, submit, retry, dismiss, open, setOpen }}>
       {children}
       {userId && tasks.length > 0 && (
-        <div aria-hidden="true" className={open ? 'h-[calc(35dvh+6rem)] md:h-[calc(50dvh+6rem)]' : 'h-28'} />
+        <div
+          aria-hidden="true"
+          className={
+            open ? 'h-[calc(35dvh+6rem)] md:h-[calc(50dvh+6rem)]' : 'h-28'
+          }
+        />
       )}
       {userId && (
         <BookAddStatus

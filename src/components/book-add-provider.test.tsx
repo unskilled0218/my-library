@@ -299,15 +299,13 @@ describe('background book additions', () => {
   it('treats malformed success data as uncertain instead of showing a saved book', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          response({
-            status: 'created',
-            libraryId: 'foreign',
-            bookId: 'hidden',
-          }),
-        ),
+      vi.fn().mockResolvedValue(
+        response({
+          status: 'created',
+          libraryId: 'foreign',
+          bookId: 'hidden',
+        }),
+      ),
     )
     render(
       <Shell>

@@ -140,7 +140,7 @@ export default async function KyoboDetailPage({
         {user ? (
           destinations.length ? (
             <KyoboAddBookForm
-              key={saleId}
+              key={`${saleId}-${selectedDestinationId}`}
               saleId={saleId}
               title={preview?.title}
               q={q}

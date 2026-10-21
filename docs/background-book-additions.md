@@ -15,7 +15,7 @@ Successful entries provide links to the book and library. Completion refreshes c
 
 ## Retry and recovery
 
-Failed entries retain the submitted options in memory. **Retry addition** repeats that snapshot; **Edit options** opens the original review page and restores available choices. Removed shelves or folders are cleared. Expired sessions show a sign-in link.
+Failed entries retain the submitted options in memory. **Retry addition** repeats that snapshot; **Edit options** opens the original review page and restores available choices. Opening a different destination for the same product resets the review form to that destination's retained values or defaults. Removed shelves or folders are cleared. Expired sessions show a sign-in link.
 
 A lost network response means the save outcome is unknown. Check the library or retry explicitly; the app never retries automatically. If the book already exists, the task resolves to **already in library** with a view/edit link. That request does not overwrite existing options or create a new book or creation audit record. It cannot establish which earlier attempt saved the book. Open the saved book to change its options.
 

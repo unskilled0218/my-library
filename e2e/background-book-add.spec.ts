@@ -45,6 +45,9 @@ test('actual header and library searches preserve pending work until the real PO
   page,
 }) => {
   const { href, libraryId } = await register(page)
+  const folder = await db.libraryFolder.create({
+    data: { libraryId, title: 'Background navigation folder' },
+  })
   const held = gate()
   await page.route('**/api/books/kyobo', async (route) => {
     held.entered()
@@ -73,12 +76,19 @@ test('actual header and library searches preserve pending work until the real PO
     await expect(panel.locator('[data-task-state="pending"]')).toBeVisible()
     await page.getByRole('link', { name: 'MY / LIBRARY' }).click()
     await page.locator(`#library-card-list a[href="${href}"]`).click()
+    await page.getByRole('link', { name: folder.title, exact: true }).click()
+    await page.locator('#library-filter-toggle').click()
+    await page
+      .locator('#library-filters select[name="reading"]')
+      .selectOption('READING')
     await page
       .locator('#library-filters')
       .getByLabel('Search books')
       .fill('Unmatched filter')
     await page.locator('#library-search-button').click()
     await expect(page).toHaveURL(/q=Unmatched\+filter/)
+    expect(new URL(page.url()).searchParams.get('folder')).toBe(folder.id)
+    expect(new URL(page.url()).searchParams.get('reading')).toBe('READING')
     expect(
       await page.evaluate(
         () =>
@@ -111,6 +121,65 @@ test('actual header and library searches preserve pending work until the real PO
     ).toBe(true)
     await panel.getByRole('link', { name: 'View and edit book' }).click()
     await expect(page).toHaveURL(new RegExp(`/books/${book.id}$`))
+  } finally {
+    held.release()
+  }
+})
+
+test('different additions complete independently and a failure remains retryable after navigation', async ({
+  page,
+}) => {
+  const { libraryId } = await register(page)
+  const { ownerId } = await db.library.findUniqueOrThrow({
+    where: { id: libraryId },
+  })
+  const secondLibrary = await db.library.create({
+    data: { ownerId, name: 'Independent background destination' },
+  })
+  const nonce = `${Date.now()}${test.info().project.name === 'mobile' ? '1' : '0'}${test.info().retry}`
+  const saleId = `S888${nonce}`
+  const held = gate()
+  await page.route('**/api/books/kyobo', async (route) => {
+    if (route.request().postData()?.includes(saleId)) {
+      held.entered()
+      await held.pending
+    }
+    await route.fulfill({ response: await route.fetch() })
+  })
+  try {
+    await page.goto(`/search/kyobo/${saleId}?libraryId=${libraryId}`)
+    const form = page.locator('#kyobo-add-book-form')
+    await form.getByLabel('Personal comment').fill('Retained after leaving')
+    await form.getByRole('button', { name: 'Add to library' }).click()
+    await held.ready
+    const header = page.locator('#header-search-form')
+    await header.getByLabel('Search books').fill('progressive kyobo fixture')
+    await header.getByLabel('Search source').selectOption('kyobo')
+    await header.getByRole('button', { name: 'Search', exact: true }).click()
+    await page
+      .getByRole('heading', { name: 'Progressive Kyobo Test Book' })
+      .click()
+    await form.getByLabel('Destination library').selectOption(secondLibrary.id)
+    await form.getByLabel('Personal comment').fill('Independent second save')
+    await form.getByRole('button', { name: 'Add to library' }).click()
+    const panel = page.locator('#book-add-status')
+    await expect(panel.locator('[data-task-state="success"]')).toHaveCount(1)
+    await expect(panel.locator('[data-task-state="pending"]')).toHaveCount(1)
+    await page.getByRole('link', { name: 'MY / LIBRARY' }).click()
+    held.release()
+    await expect(panel.getByRole('alert')).toContainText(
+      'details are unavailable',
+    )
+    expect(await db.book.count({ where: { libraryId } })).toBe(0)
+    await panel.getByRole('button', { name: 'Retry addition' }).click()
+    await expect(panel.locator('[data-task-state="success"]')).toHaveCount(2)
+    await expect(page).toHaveURL(/\/libraries$/)
+    const first = await db.book.findFirstOrThrow({ where: { libraryId } })
+    const second = await db.book.findFirstOrThrow({
+      where: { libraryId: secondLibrary.id },
+    })
+    expect(first.comment).toBe('Retained after leaving')
+    expect(second.comment).toBe('Independent second save')
   } finally {
     held.release()
   }

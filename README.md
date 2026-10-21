@@ -12,7 +12,7 @@ A responsive personal book-management service for private and shared libraries, 
 - Protected local cover and EPUB/PDF storage, reading history, and statistics.
 - Library sharing, JSON/CSV backups, and a separate administrator realm.
 - Korean (default) and English interfaces with account-level preferences.
-- Background Kyobo additions with progress, retry, and continued in-app search.
+- Background Kyobo additions with progress, retained retry options, and continued in-app search within the open tab.
 
 ## Quick start
 
