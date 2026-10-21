@@ -185,10 +185,12 @@ test('Kyobo full information is retrieved only when adding from the review page'
   await addForm.getByLabel('평점').selectOption('4')
   await addForm.getByLabel('개인 메모').fill('Added with my options')
   await addForm.getByRole('button', { name: '서재에 추가' }).click()
-  await expect(page.getByRole('status')).toContainText(
+  await expect(addForm.getByRole('status')).toContainText(
     '교보문고에서 책 정보를 가져와 추가하고 있습니다.',
   )
-  await expect(page).toHaveURL(/\/search\?.*status=added/)
+  await expect(
+    page.locator('#book-add-status [data-task-state="success"]'),
+  ).toBeVisible()
   await page.getByRole('link', { name: '서재로 이동', exact: true }).click()
   await page
     .locator('#library-book-list')

@@ -45,6 +45,7 @@ vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath }))
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
 
 import { addKyoboBookAction } from '@/app/actions'
+import { importKyoboBook } from '@/lib/kyobo-import'
 
 const canonical = {
   saleId: 'S000001772370',
@@ -97,6 +98,42 @@ describe('Kyobo add-time validation and persistence', () => {
       height: 200,
     })
     mocks.removeCover.mockResolvedValue(undefined)
+  })
+
+  it('returns the created identifiers from the shared service without navigation', async () => {
+    expect(await importKyoboBook({ id: 'editor' }, form())).toEqual({
+      status: 'created',
+      bookId: 'created',
+      libraryId: 'shared-library',
+    })
+    expect(mocks.audit).toHaveBeenCalledOnce()
+    expect(mocks.redirect).not.toHaveBeenCalled()
+    expect(mocks.revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('returns a destination-authorized existing book without writing or applying retry options', async () => {
+    mocks.duplicate.mockResolvedValueOnce({ id: 'existing' })
+    expect(
+      await importKyoboBook(
+        { id: 'editor' },
+        form({ comment: 'Do not replace' }),
+      ),
+    ).toEqual({
+      status: 'existing',
+      bookId: 'existing',
+      libraryId: 'shared-library',
+    })
+    expect(mocks.requireLibraryAccess).toHaveBeenCalledWith(
+      { id: 'editor' },
+      'shared-library',
+      'WRITE',
+    )
+    expect(mocks.duplicate.mock.calls[0][0].where.libraryId).toBe(
+      'shared-library',
+    )
+    expect(mocks.createBook).not.toHaveBeenCalled()
+    expect(mocks.audit).not.toHaveBeenCalled()
+    expect(mocks.downloadCover).not.toHaveBeenCalled()
   })
 
   it('saves canonical metadata and all user options with owner-scoped tags and an initial folder', async () => {

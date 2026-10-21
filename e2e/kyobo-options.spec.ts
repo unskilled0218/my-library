@@ -101,7 +101,10 @@ test('failed add-time retrieval saves nothing and retry keeps selected options i
   await checkLibrary.close()
 
   await form.getByRole('button', { name: 'Add to library' }).click()
-  await expect(page).toHaveURL(/\/search\?.*status=added/)
+  await expect(
+    page.locator('#book-add-status [data-task-state="success"]'),
+  ).toBeVisible()
+  await expect(page).toHaveURL(/\/search\/kyobo\//)
   await page.getByRole('link', { name: 'Go to library', exact: true }).click()
   await page
     .locator('#library-book-list')
@@ -186,7 +189,9 @@ test('destination switching resets tags and folders and an editor saves the libr
       .selectOption({ label: 'Owner folder' })
     await expectNoOverflow(page)
     await form.getByRole('button', { name: '서재에 추가' }).click()
-    await expect(page).toHaveURL(/\/search\?.*status=added/)
+    await expect(
+      page.locator('#book-add-status [data-task-state="success"]'),
+    ).toBeVisible()
     await page.goto(owner.libraryHref)
     await page
       .locator('#library-folder-list')

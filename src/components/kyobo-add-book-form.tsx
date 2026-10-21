@@ -1,8 +1,7 @@
 'use client'
 
-import { useActionState, useState, type ChangeEvent } from 'react'
-import { addKyoboBookAction } from '@/app/actions'
-import type { KyoboAddResult } from '@/lib/book-options'
+import { useState, type ChangeEvent } from 'react'
+import { useBookAdds } from '@/components/book-add-provider'
 import { booksMessages } from '@/lib/i18n/books'
 import { commonMessages } from '@/lib/i18n/common'
 import type { AppLanguage } from '@/lib/i18n/config'
@@ -24,6 +23,7 @@ export function KyoboAddBookForm({
   language,
   ebook = false,
   duplicate = false,
+  title = '',
 }: {
   saleId: string
   q: string
@@ -33,34 +33,62 @@ export function KyoboAddBookForm({
   language: AppLanguage
   ebook?: boolean
   duplicate?: boolean
+  title?: string
 }) {
   const messages = searchMessages[language]
   const books = booksMessages[language]
   const common = commonMessages[language]
-  const [fields, setFields] = useState({
-    libraryId: destinations.some(
-      (library) => library.id === selectedDestinationId,
+  const { tasks, submit } = useBookAdds()
+  const [fields, setFields] = useState(() => {
+    const defaults = {
+      libraryId: destinations.some(
+        (library) => library.id === selectedDestinationId,
+      )
+        ? selectedDestinationId!
+        : (destinations[0]?.id ?? ''),
+      ownershipState: 'HAVE',
+      locationTagId: '',
+      folderId: '',
+      readingState: 'NOT_STARTED',
+      readingStartedAt: '',
+      readingFinishedAt: '',
+      rating: '',
+      comment: '',
+    }
+    const failed = tasks.find(
+      (task) =>
+        task.saleId === saleId &&
+        task.state === 'error' &&
+        task.libraryId === defaults.libraryId,
     )
-      ? selectedDestinationId!
-      : (destinations[0]?.id ?? ''),
-    ownershipState: 'HAVE',
-    locationTagId: '',
-    folderId: '',
-    readingState: 'NOT_STARTED',
-    readingStartedAt: '',
-    readingFinishedAt: '',
-    rating: '',
-    comment: '',
+    if (!failed) return defaults
+    const restored = { ...defaults }
+    for (const key of Object.keys(defaults) as (keyof typeof defaults)[])
+      restored[key] = failed.values[key] ?? defaults[key]
+    const library = destinations.find(
+      (entry) => entry.id === restored.libraryId,
+    )
+    if (!library) return defaults
+    if (
+      ebook ||
+      !library.locations.some((entry) => entry.id === restored.locationTagId)
+    )
+      restored.locationTagId = ''
+    if (!library.folders.some((entry) => entry.id === restored.folderId))
+      restored.folderId = ''
+    return restored
   })
-  const [result, action, pending] = useActionState(
-    async (_previous: KyoboAddResult | null, form: FormData) =>
-      addKyoboBookAction(form),
-    null,
-  )
   const destination = destinations.find(
     (library) => library.id === fields.libraryId,
   )
-  const error = result?.error ?? (duplicate ? 'alreadyExists' : null)
+  const task = tasks.find(
+    (entry) => entry.saleId === saleId && entry.libraryId === fields.libraryId,
+  )
+  const pending = task?.state === 'pending'
+  const completed = task?.state === 'success' || task?.state === 'existing'
+  const error =
+    (task?.state === 'error' ? task.error : null) ??
+    (duplicate ? 'alreadyExists' : null)
   function bind(name: keyof typeof fields) {
     return {
       name,
@@ -83,7 +111,23 @@ export function KyoboAddBookForm({
   return (
     <form
       id="kyobo-add-book-form"
-      action={action}
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (!destination) return
+        const form = new FormData(event.currentTarget)
+        const detail = new URL(window.location.href)
+        detail.searchParams.set('libraryId', destination.id)
+        submit({
+          saleId,
+          libraryId: destination.id,
+          libraryName: destination.name,
+          title,
+          detailHref: `${detail.pathname}${detail.search}`,
+          values: Object.fromEntries(
+            [...form.entries()].map(([key, value]) => [key, String(value)]),
+          ),
+        })
+      }}
       onReset={(event) => event.preventDefault()}
       className="panel space-y-5"
     >
@@ -96,7 +140,7 @@ export function KyoboAddBookForm({
       <input type="hidden" name="source" value={source} />
       {error && (
         <p id="kyobo-add-message" role="alert" className="text-sm text-rust">
-          {messages[error]}
+          {messages[error] ?? messages.saveFailed}
         </p>
       )}
       {pending && (
@@ -104,10 +148,7 @@ export function KyoboAddBookForm({
           {messages.addingBook}
         </p>
       )}
-      <fieldset
-        disabled={pending}
-        className="grid min-w-0 gap-4 sm:grid-cols-2"
-      >
+      <fieldset className="grid min-w-0 gap-4 sm:grid-cols-2">
         <label className="min-w-0 sm:col-span-2">
           {messages.destinationLibrary}
           <select
@@ -189,8 +230,18 @@ export function KyoboAddBookForm({
           {books.personalComment}
           <textarea rows={4} maxLength={10_000} {...bind('comment')} />
         </label>
-        <button type="submit" className="sm:col-span-2">
-          {pending ? messages.addingBook : messages.addToLibrary}
+        <button
+          type="submit"
+          disabled={pending || completed}
+          className="sm:col-span-2"
+        >
+          {pending
+            ? messages.addingBook
+            : completed
+              ? task.state === 'existing'
+                ? messages.alreadyExists
+                : messages.bookAdded
+              : messages.addToLibrary}
         </button>
       </fieldset>
     </form>

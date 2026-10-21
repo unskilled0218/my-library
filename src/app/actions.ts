@@ -25,17 +25,16 @@ import {
   tokenHash,
   createUser,
 } from '@/lib/auth'
-import { downloadCover, removeCover, saveCoverData } from '@/lib/covers'
+import { removeCover, saveCoverData } from '@/lib/covers'
 import { removeBookFile } from '@/lib/book-files'
-import { parseBookOptions, type KyoboAddResult } from '@/lib/book-options'
+import type { KyoboAddResult } from '@/lib/book-options'
 import { db } from '@/lib/db'
 import { upsertGenrePaths } from '@/lib/genres'
 import {
   folderDescendantIds,
   normalizeFolderTitle,
 } from '@/lib/library-folders'
-import { getKyoboBook } from '@/lib/kyobo'
-import { isKyoboSaleId } from '@/lib/kyobo-preview'
+import { importKyoboBook } from '@/lib/kyobo-import'
 import { setLanguageCookie } from '@/lib/i18n/cookie'
 import { assertRateLimit } from '@/lib/rate-limit'
 import {
@@ -615,105 +614,9 @@ export async function addKyoboBookAction(
   const libraryId = value(form, 'libraryId')
   const q = value(form, 'q').slice(0, 120)
   const source = value(form, 'source') === 'all' ? 'all' : 'kyobo'
-  const saleId = value(form, 'saleId')
-  if (!isKyoboSaleId(saleId)) return { error: 'invalidProduct' }
-  const parsed = parseBookOptions(form)
-  if ('error' in parsed) return parsed
-  const { options } = parsed
-  try {
-    await requireLibraryAccess(user, libraryId, 'WRITE')
-  } catch {
-    return { error: 'accessDenied' }
-  }
-  let book: Awaited<ReturnType<typeof getKyoboBook>>
-  try {
-    const library = await db.library.findUniqueOrThrow({
-      where: { id: libraryId },
-      select: { ownerId: true },
-    })
-    if (
-      options.locationTagId &&
-      !(await db.locationTag.findFirst({
-        where: { id: options.locationTagId, userId: library.ownerId },
-        select: { id: true },
-      }))
-    )
-      return { error: 'invalidLocation' }
-    if (
-      options.folderId &&
-      !(await db.libraryFolder.findFirst({
-        where: { id: options.folderId, libraryId },
-        select: { id: true },
-      }))
-    )
-      return { error: 'invalidFolder' }
-  } catch {
-    return { error: 'saveFailed' }
-  }
-  try {
-    book = await getKyoboBook(saleId)
-    kyoboBookUrlSchema.parse(book.sourceUrl)
-  } catch {
-    return { error: 'detailsUnavailable' }
-  }
-  let cover: Awaited<ReturnType<typeof downloadCover>> | null = null
-  try {
-    const duplicate = await db.book.findFirst({
-      where: {
-        libraryId,
-        OR: [
-          book.isbn.length === 10
-            ? { isbn10: book.isbn }
-            : { isbn13: book.isbn },
-          { sourceUrl: book.sourceUrl },
-        ],
-      },
-      select: { id: true },
-    })
-    if (duplicate) {
-      return { error: 'alreadyExists' }
-    }
-    cover = book.coverUrl
-      ? await downloadCover(book.coverUrl).catch(() => null)
-      : null
-    await db.$transaction(async (tx) => {
-      const genreIds = await upsertGenrePaths(tx, book.genrePaths)
-      const created = await tx.book.create({
-        data: {
-          libraryId,
-          ...options,
-          locationTagId: book.format === 'EBOOK' ? null : options.locationTagId,
-          title: book.title,
-          authors: book.authors,
-          description: book.description,
-          isbn10: book.isbn.length === 10 ? book.isbn : null,
-          isbn13: book.isbn.length === 13 ? book.isbn : null,
-          sourceUrl: book.sourceUrl,
-          format:
-            book.format === 'EBOOK' ? BookFormat.EBOOK : BookFormat.PHYSICAL,
-          coverKey: cover?.key,
-          coverMime: cover?.mime,
-          coverWidth: cover?.width,
-          coverHeight: cover?.height,
-          genres: { create: genreIds.map((genreId) => ({ genreId })) },
-        },
-      })
-      await tx.auditLog.create({
-        data: {
-          actorType: ActorType.USER,
-          actorId: user.id,
-          action: 'BOOK_CREATED',
-          targetType: 'Book',
-          targetId: created.id,
-          libraryId,
-          summary: { isbn: book.isbn, source: 'kyobo' },
-        },
-      })
-    })
-  } catch {
-    await removeCovers([cover?.key])
-    return { error: 'saveFailed' }
-  }
+  const result = await importKyoboBook(user, form)
+  if (result.status === 'error') return { error: result.error }
+  if (result.status === 'existing') return { error: 'alreadyExists' }
   revalidatePath(`/libraries/${libraryId}`)
   revalidatePath('/')
   revalidatePath('/libraries')

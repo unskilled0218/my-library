@@ -57,6 +57,17 @@ export type KyoboAddError =
   | 'saveFailed'
 export type KyoboAddResult = { error: KyoboAddError }
 
+export type KyoboImportResult =
+  | { status: 'created' | 'existing'; bookId: string; libraryId: string }
+  | { status: 'error'; error: KyoboAddError }
+
+export type KyoboRequestResult =
+  | KyoboImportResult
+  | {
+      status: 'error'
+      error: 'signInRequired' | 'invalidRequest'
+    }
+
 export type BookOptions = {
   ownershipState: 'HAVE' | 'DONT_HAVE'
   locationTagId: string | null

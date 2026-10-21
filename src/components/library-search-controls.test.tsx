@@ -2,9 +2,15 @@
 
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LibrarySearchControls } from '@/components/library-search-controls'
 import { LocaleProvider } from '@/components/locale-provider'
+
+const push = vi.hoisted(() => vi.fn())
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+  usePathname: () => '/libraries/library-1',
+}))
 
 const props = {
   query: {
@@ -22,6 +28,29 @@ const props = {
 afterEach(cleanup)
 
 describe('LibrarySearchControls', () => {
+  it('searches client-side with submitted filters and folder scope', () => {
+    render(
+      <LocaleProvider language="EN">
+        <LibrarySearchControls
+          {...props}
+          query={{ ...props.query, folder: 'nested' }}
+        />
+      </LocaleProvider>,
+    )
+    fireEvent.change(screen.getByLabelText('Search books'), {
+      target: { value: 'next' },
+    })
+    fireEvent.submit(document.querySelector('#library-filters')!)
+    const url = new URL(push.mock.calls.at(-1)![0], 'http://localhost')
+    expect(url.pathname).toBe('/libraries/library-1')
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({
+      folder: 'nested',
+      q: 'next',
+      reading: 'READING',
+      genre: 'genre-1',
+      location: 'shelf-1',
+    })
+  })
   const renderControls = (language: 'KO' | 'EN' = 'KO') =>
     render(
       <LocaleProvider language={language}>

@@ -4,16 +4,30 @@ import {
   act,
   cleanup,
   fireEvent,
-  render,
+  render as renderUI,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { KyoboAddBookForm } from '@/components/kyobo-add-book-form'
 import type { KyoboAddResult } from '@/lib/book-options'
+import type { ReactElement } from 'react'
+import { BookAddProvider } from '@/components/book-add-provider'
+import { LocaleProvider } from '@/components/locale-provider'
 
 const addBook = vi.hoisted(() => vi.fn())
-vi.mock('@/app/actions', () => ({ addKyoboBookAction: addBook }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+
+function render(element: ReactElement) {
+  return renderUI(
+    <LocaleProvider language="EN">
+      <BookAddProvider userId="editor">{element}</BookAddProvider>
+    </LocaleProvider>,
+  )
+}
+const form = () =>
+  within(document.querySelector('#kyobo-add-book-form') as HTMLElement)
 
 const props = {
   saleId: 'S000001772370',
@@ -36,10 +50,19 @@ const props = {
     },
   ],
 }
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 beforeEach(() => {
   vi.resetAllMocks()
   addBook.mockResolvedValue({ error: 'detailsUnavailable' })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (_url, init) => ({
+      json: async () => ({ status: 'error', ...(await addBook(init.body)) }),
+    })),
+  )
 })
 
 describe('KyoboAddBookForm', () => {
@@ -121,7 +144,7 @@ describe('KyoboAddBookForm', () => {
     expect(screen.getByLabelText('Finished')).toBeEnabled()
   })
 
-  it('announces pending retrieval and freezes controls until the response, retaining inputs for retry', async () => {
+  it('announces pending retrieval without blocking destination changes and retains inputs for retry', async () => {
     let finish!: (result: KyoboAddResult) => void
     addBook.mockReturnValueOnce(
       new Promise<KyoboAddResult>((resolve) => {
@@ -139,25 +162,25 @@ describe('KyoboAddBookForm', () => {
       screen.getByRole('button', { name: 'Add to library' }).closest('form')!,
     )
     await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent(
+      expect(form().getByRole('status')).toHaveTextContent(
         'Retrieving Kyobo information',
       ),
     )
-    expect(screen.getByLabelText('Destination library')).toBeDisabled()
-    expect(screen.getByLabelText('Personal comment')).toBeDisabled()
-    expect(screen.getByRole('button')).toBeDisabled()
+    expect(screen.getByLabelText('Destination library')).toBeEnabled()
+    expect(screen.getByLabelText('Personal comment')).toBeEnabled()
+    expect(form().getByRole('button')).toBeDisabled()
     await act(async () => {
       finish({ error: 'detailsUnavailable' })
     })
-    expect(screen.getByRole('alert')).toHaveTextContent(
+    expect(form().getByRole('alert')).toHaveTextContent(
       'Book details are unavailable.',
     )
     expect(screen.getByLabelText('Personal comment')).toHaveValue(
       'Retain notes',
     )
     expect(screen.getByLabelText('Location')).toHaveValue('owners')
-    expect(screen.getByRole('button')).toBeEnabled()
-    fireEvent.submit(screen.getByRole('button').closest('form')!)
+    expect(form().getByRole('button')).toBeEnabled()
+    fireEvent.submit(form().getByRole('button').closest('form')!)
     await waitFor(() => expect(addBook).toHaveBeenCalledTimes(2))
     const retry = addBook.mock.calls[1][0] as FormData
     expect(retry.get('comment')).toBe('Retain notes')
@@ -173,7 +196,7 @@ describe('KyoboAddBookForm', () => {
       screen.getByRole('button', { name: '서재에 추가' }).closest('form')!,
     )
     await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveTextContent(
+      expect(form().getByRole('alert')).toHaveTextContent(
         '다 읽은 날은 읽기 시작한 날보다 빠를 수 없습니다.',
       ),
     )

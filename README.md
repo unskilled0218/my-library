@@ -1,5 +1,9 @@
 # My Library
 
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Documentation](#documentation)
+
 A responsive personal book-management service for private and shared libraries, built with Next.js, React, and PostgreSQL.
 
 ## Features
@@ -8,6 +12,7 @@ A responsive personal book-management service for private and shared libraries, 
 - Protected local cover and EPUB/PDF storage, reading history, and statistics.
 - Library sharing, JSON/CSV backups, and a separate administrator realm.
 - Korean (default) and English interfaces with account-level preferences.
+- Background Kyobo additions with progress, retry, and continued in-app search.
 
 ## Quick start
 
@@ -28,6 +33,7 @@ A responsive personal book-management service for private and shared libraries, 
 - [Local development](docs/local-development.md)
 - [Publishing a release](docs/publish-a-release.md)
 - [Verification and Kyobo diagnostics](docs/verification.md)
+- [Background book additions](docs/background-book-additions.md)
 - [Language preferences](docs/languages.md)
 - [Settings and backup scope](docs/settings-scope.md)
 - [Security boundaries](docs/security-boundaries.md)

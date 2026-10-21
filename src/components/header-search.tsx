@@ -44,6 +44,13 @@ export function HeaderSearch({ authenticated }: { authenticated: boolean }) {
         key={`${pathname}-${searchParams.get('q')}-${currentSource}`}
         id="header-search-form"
         action="/search"
+        onSubmit={(event) => {
+          event.preventDefault()
+          const data = new FormData(event.currentTarget)
+          router.push(
+            `/search?${new URLSearchParams({ q: String(data.get('q') ?? ''), source: authenticated ? String(data.get('source') ?? 'all') : 'kyobo' })}`,
+          )
+        }}
         className="flex min-w-0 items-center gap-1.5"
       >
         <input

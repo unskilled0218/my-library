@@ -2,6 +2,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import KyoboDetailPage from '@/app/search/kyobo/[saleId]/page'
 import { searchMessages } from '@/lib/i18n/search'
+import { BookAddProvider } from '@/components/book-add-provider'
+import { LocaleProvider } from '@/components/locale-provider'
 
 const mocks = vi.hoisted(() => ({
   currentUser: vi.fn(),
@@ -19,6 +21,7 @@ vi.mock('@/lib/db', () => ({ db: { library: { findMany: mocks.choices } } }))
 vi.mock('@/lib/kyobo', () => ({ getKyoboBook: mocks.getKyoboBook }))
 vi.mock('@/app/actions', () => ({ addKyoboBookAction: vi.fn() }))
 vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
   notFound: () => {
     throw new Error('NOT_FOUND')
   },
@@ -38,10 +41,14 @@ async function renderPage(
   saleId = 'S000001772370',
 ) {
   return renderToStaticMarkup(
-    await KyoboDetailPage({
-      params: Promise.resolve({ saleId }),
-      searchParams: Promise.resolve(query),
-    }),
+    <LocaleProvider language="EN">
+      <BookAddProvider userId="user-1">
+        {await KyoboDetailPage({
+          params: Promise.resolve({ saleId }),
+          searchParams: Promise.resolve(query),
+        })}
+      </BookAddProvider>
+    </LocaleProvider>,
   )
 }
 

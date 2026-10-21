@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { CloseIcon, FilterIcon } from '@/components/icons'
 import { useLanguage } from '@/components/locale-provider'
 import { commonMessages } from '@/lib/i18n/common'
@@ -31,12 +32,24 @@ export function LibrarySearchControls({
   genres: Option[]
 }) {
   const [filtersVisible, setFiltersVisible] = useState(false)
+  const router = useRouter()
+  const pathname = usePathname()
   const language = useLanguage()
   const messages = librariesMessages[language]
   const common = commonMessages[language]
 
   return (
-    <form id="library-filters" className="panel mt-8">
+    <form
+      id="library-filters"
+      className="panel mt-8"
+      onSubmit={(event) => {
+        event.preventDefault()
+        const data = new FormData(event.currentTarget)
+        router.push(
+          `${pathname}?${new URLSearchParams([...data.entries()].map(([key, value]) => [key, String(value)]))}`,
+        )
+      }}
+    >
       {query.folder && (
         <input type="hidden" name="folder" value={query.folder} />
       )}

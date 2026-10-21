@@ -54,6 +54,23 @@ function renderSearch(authenticated: boolean, language: AppLanguage = 'KO') {
 }
 
 describe('HeaderSearch', () => {
+  it.each([true, false])(
+    'submits a typed search without reloading, authenticated=%s',
+    (authenticated) => {
+      renderSearch(authenticated, 'EN')
+      fireEvent.change(screen.getByLabelText('Search books'), {
+        target: { value: 'Next book' },
+      })
+      if (authenticated)
+        fireEvent.change(screen.getByLabelText('Search source'), {
+          target: { value: 'library' },
+        })
+      fireEvent.submit(document.querySelector('#header-search-form')!)
+      expect(navigation.push).toHaveBeenCalledWith(
+        `/search?q=Next+book&source=${authenticated ? 'library' : 'kyobo'}`,
+      )
+    },
+  )
   it('renders retained signed-in GET controls in the requested order', () => {
     const { container } = renderSearch(true)
     const form = container.querySelector('form')!
