@@ -20,6 +20,8 @@ def enable_subreaper():
   state = ctypes.c_int()
   if libc.prctl(36, 1, 0, 0, 0) != 0 or libc.prctl(37, ctypes.byref(state), 0, 0, 0) != 0 or state.value != 1:
     raise OSError("Cannot enable invocation-local child subreaper")
+  # Direct-child fallback relies on zombies retaining their PID until this supervisor reaps them.
+  signal.signal(signal.SIGCHLD, signal.SIG_DFL)
   descriptor = os.pidfd_open(os.getpid())
   try:
     signal.pidfd_send_signal(descriptor, 0)
@@ -90,6 +92,45 @@ def send_signal(fd, number):
     pass
 
 
+def signal_owned_root(root, root_handle, number):
+  if root is None:
+    return
+  if root_handle is not None:
+    send_signal(root_handle, number)
+  elif root.returncode is None:
+    # This single-threaded supervisor has not reaped its direct child, so its PID is reserved.
+    # This fallback must never be used for discovered descendants.
+    try:
+      os.kill(root.pid, number)
+    except ProcessLookupError:
+      pass
+
+
+def emergency_teardown(root, root_handle, handles, deadline):
+  while time.monotonic() < deadline:
+    try:
+      discover(handles)
+    except OSError:
+      # Resource exhaustion cannot authorize raw-PID signals to unverified descendants.
+      pass
+    signal_owned_root(root, root_handle, signal.SIGKILL)
+    for fd in handles.values():
+      send_signal(fd, signal.SIGKILL)
+    try:
+      while True:
+        pid, status = os.waitpid(-1, os.WNOHANG)
+        if pid == 0:
+          break
+        if root is not None and pid == root.pid:
+          root.returncode = os.waitstatus_to_exitcode(status)
+        if pid in handles:
+          os.close(handles.pop(pid))
+    except ChildProcessError:
+      return True
+    time.sleep(.01)
+  return False
+
+
 def supervise(channel, grace, arguments):
   def report(value):
     try:
@@ -100,21 +141,29 @@ def supervise(channel, grace, arguments):
 
   report({"event": "ready"})
   channel.settimeout(5)
-  if channel.recv(64) != b"start\n":
-    return
+  request = channel.recv(64)
+  if not request.startswith(b"start\n"):
+    os.close(1)
+    os.close(2)
+    report({"event": "complete", "returncode": None, "forced": False, "directories": [], "reaped": True})
+    return True
   channel.setblocking(False)
-  existing_directories = set(Path.cwd().glob("bash-release.*"))
-  root = subprocess.Popen(arguments, stdin=subprocess.DEVNULL)
-  root_handle = os.pidfd_open(root.pid)
+  root = root_handle = None
   handles = {}
-  report({"event": "started", "pid": root.pid})
   cancelled = None
   forced = False
   root_code = None
   directories = set()
-  received = b""
+  received = request[len(b"start\n"):]
   control_open = True
   try:
+    existing_directories = set(Path.cwd().glob("bash-release.*"))
+    root = subprocess.Popen(arguments, stdin=subprocess.DEVNULL)
+    root_handle = os.pidfd_open(root.pid)
+    report({"event": "started", "pid": root.pid})
+    if b"cancel\n" in received:
+      cancelled = time.monotonic()
+      signal_owned_root(root, root_handle, signal.SIGTERM)
     while True:
       discover(handles)
       for path in Path.cwd().glob("bash-release.*"):
@@ -145,7 +194,7 @@ def supervise(channel, grace, arguments):
           control_open = bool(chunk)
           if cancelled is None:
             cancelled = now
-            send_signal(root_handle, signal.SIGTERM)
+            signal_owned_root(root, root_handle, signal.SIGTERM)
       elif not control_open:
         time.sleep(.01)
       if root_code is not None and cancelled is None:
@@ -157,44 +206,29 @@ def supervise(channel, grace, arguments):
           send_signal(fd, signal.SIGKILL)
         if now - cancelled >= grace + 5:
           report({"event": "incomplete", "owned": list(handles), "directories": sorted(directories)})
-          return
+          return False
     # Release descendants have all been reaped; close inherited output before acknowledgement.
     os.close(1)
     os.close(2)
     report({"event": "complete", "returncode": root_code, "forced": forced,
             "directories": sorted(directories), "reaped": True})
+    return True
   except BaseException as error:
     # Infrastructure errors still require bounded adoption and teardown, never an early exit.
-    deadline = time.monotonic() + 5
-    while time.monotonic() < deadline:
-      try:
-        discover(handles)
-      except OSError:
-        # A failed observation is not permission to signal an unowned process.
-        pass
-      send_signal(root_handle, signal.SIGKILL)
-      for fd in handles.values():
-        send_signal(fd, signal.SIGKILL)
-      try:
-        while True:
-          pid, status = os.waitpid(-1, os.WNOHANG)
-          if pid == 0:
-            break
-          if pid == root.pid:
-            root.returncode = os.waitstatus_to_exitcode(status)
-          if pid in handles:
-            os.close(handles.pop(pid))
-      except ChildProcessError:
-        break
-      time.sleep(.01)
+    reaped = emergency_teardown(root, root_handle, handles, time.monotonic() + 5)
     frame = error.__traceback__
     while frame.tb_next is not None:
       frame = frame.tb_next
     reason = f"{type(error).__name__} errno={getattr(error, 'errno', None)} line={frame.tb_lineno}"
-    report({"event": "incomplete", "reason": reason,
+    os.close(1)
+    os.close(2)
+    report({"event": "failed" if reaped else "incomplete", "reason": reason, "reaped": reaped,
+            "returncode": root.returncode if root is not None else None, "forced": root is not None,
             "owned": list(handles), "directories": sorted(directories)})
+    return reaped
   finally:
-    os.close(root_handle)
+    if root_handle is not None:
+      os.close(root_handle)
     for fd in handles.values():
       os.close(fd)
 
@@ -215,7 +249,8 @@ if __name__ == "__main__":
     sys.exit(1)
   else:
     try:
-      supervise(channel, float(grace), arguments)
+      reaped = supervise(channel, float(grace), arguments)
+      sys.exit(0 if reaped else 1)
     except OSError as error:
       try:
         channel.sendall(json.dumps({"event": "incomplete", "reason":

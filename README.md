@@ -33,7 +33,7 @@ A responsive personal book-management service for private and shared libraries, 
 - [Production deployment, backups, and upgrades](docs/production-deployment.md)
 - [Local development](docs/local-development.md)
 - [Publishing a release](docs/publish-a-release.md)
-- [Release workflow adaptations](docs/release-adaptations.md)
+- [Release workflow adaptations and test supervision](docs/release-adaptations.md)
 - [Digest-pinned release images](docs/image-usage.md)
 - [Verification and Kyobo diagnostics](docs/verification.md)
 - [Background book additions](docs/background-book-additions.md)

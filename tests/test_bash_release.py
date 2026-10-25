@@ -151,8 +151,12 @@ class BashPublicationTests(unittest.TestCase):
     return result
 
   def start_release(self):
-    process = SupervisedProcess(["bash", str(self.root / "scripts/release.sh")],
-                                cwd=self.base, env=self.environment)
+    try:
+      process = SupervisedProcess(["bash", str(self.root / "scripts/release.sh")],
+                                  cwd=self.base, env=self.environment)
+    except SupervisionError:
+      self.retain_fixture = True
+      raise
     def cleanup_process():
       try:
         process.close()
@@ -160,7 +164,11 @@ class BashPublicationTests(unittest.TestCase):
         self.retain_fixture = True
         raise
     self.addCleanup(cleanup_process)
-    return process.start()
+    try:
+      return process.start()
+    except SupervisionError:
+      self.retain_fixture = True
+      raise
 
   def assert_no_writes(self):
     self.assertFalse(set(self.events()) & {"build", "tag-push", "promote", "release-post", "package-link"}, self.events())

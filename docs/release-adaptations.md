@@ -4,6 +4,7 @@
   - [Baseline and current bytes](#baseline-and-current-bytes)
   - [Protocol fixes](#protocol-fixes)
   - [Test adaptations](#test-adaptations)
+  - [Launch ownership](#launch-ownership)
   - [Verification and review status](#verification-and-review-status)
 
 ## Baseline and current bytes
@@ -36,6 +37,14 @@ The root test layout and original safety scenarios remain. The earlier template-
 Each supervised release invocation has its own Linux child-subreaper process, not a runner-wide process setting. A readiness/start handshake establishes adoption before launch. Graceful cancellation first signals the lock owner; bounded escalation uses PID file descriptors for descendants across sessions and reaps adopted children before completion. A disappearing or invalid `/proc` candidate (`ESRCH` or `EINVAL` during handle acquisition) is discarded without signaling and retried through discovery/adoption; other acquisition failures remain fatal. Control-channel closure also requests teardown. Output/control traffic is separate and bounded. Normal completion preserves release output and the existing 90-second execution limit.
 
 On cooperative exit, production traps must remove run-owned paths. If SIGKILL prevented traps, the harness removes only verified `bash-release.*` directories under its disposable fixture after successful reaping. Incomplete teardown retains the fixture and reports infrastructure failure. No global process-name killing, privileged installation, or shared temporary-directory cleanup occurs. Linux `/proc`, child-subreaper support, and Python/kernel PID-file-descriptor signaling are required; an unavailable capability is explicitly skipped and cannot certify the fix.
+
+## Launch ownership
+
+The test client now owns cleanup before sending START. A request that may have been dispatched is tracked separately from a received launch acknowledgement. Failed context entry, missing/unread/malformed acknowledgements, interruption, and partial construction all use the same bounded lifetime guard; neither garbage collection nor `__exit__` after failed `__enter__` is relied on. Cancellation consumes any outstanding `started` message before interpreting final teardown evidence. Original launch exceptions are preserved when teardown succeeds; unproved cleanup raises a chained `SupervisionError` and retains the fixture.
+
+The dedicated supervisor protects root `Popen`, initial pidfd acquisition, and launch announcement inside the owned lifecycle. It can clean up a known unreaped direct child even if that child's initial pidfd could not be acquired; the child's reserved identity makes this a narrow direct-child exception, not permission to signal discovered descendants by raw PID. Descendants still require verified ancestry/pidfds and subreaper adoption. Resource exhaustion that prevents complete proof produces bounded incomplete-teardown evidence, not success or a post-launch capability skip.
+
+Setup before START cannot launch a release. Cleanup is idempotent across caller guards, direct context-manager use, and unittest finalizers. Successful and nonzero-exit output, the ordinary 90-second execution limit, and existing forced-cleanup behavior are unchanged. The separate T5 warning about exposing forced teardown to ordinary publication assertions is intentionally not addressed by this launch-ownership change.
 
 ## Verification and review status
 
