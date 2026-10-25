@@ -101,6 +101,7 @@ if [[ -n "$remote_oid" || -n "$release_record" ]]; then
 fi
 stage 'fresh-publication preparation'
 tag_confirmed=false
+promotion_confirmed=false
 run 65536 60 git -C "$root" tag --list "$tag"
 [[ ! -s "$work/command.out" ]] || stop 'Local tag exists without a remote publication; inspect before building'
 predecessor=$(data resolve "$root" "$work" latest) || stop 'Cannot capture predecessor alias'
@@ -149,6 +150,7 @@ else
   progress 'latest already matches the prepared digest; skipping promotion'
 fi
 [[ $(data resolve "$root" "$work" latest) == "$prepared" ]] || stop 'Promotion not confirmed'
+promotion_confirmed=true
 progress 'digest promotion verified'
 stage 'release creation'
 fresh_guard

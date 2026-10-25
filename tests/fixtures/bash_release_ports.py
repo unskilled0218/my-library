@@ -264,6 +264,18 @@ elif route.endswith("/tags"):
 elif route.startswith("/v2/"):
   reference = route.rsplit("/", 1)[1]
   fault = None
+  if reference == "latest" and "promote" in (base / "events").read_text().splitlines():
+    state["post_promotion_reads"] = state.get("post_promotion_reads", 0) + 1
+    if state["post_promotion_reads"] == 2 and state.get("post_promotion_fault"):
+      fault = state.pop("post_promotion_fault")
+      event("post-promotion-injected:" + fault)
+      if fault == "predecessor":
+        state["aliases"]["latest"] = state["predecessor"]
+      elif fault == "absent":
+        state["aliases"].pop("latest", None)
+      elif fault == "foreign":
+        state["aliases"]["latest"] = store({"foreign": True})
+    save()
   if reference == "latest" and "tag-confirmed" in (base / "events").read_text().splitlines() and "promote" not in (base / "events").read_text().splitlines():
     state["promotion_reads"] = state.get("promotion_reads", 0) + 1
     if state["promotion_reads"] == 2 and state.get("promotion_read_fault"):
@@ -330,7 +342,7 @@ if route.startswith("/v2/"):
     data = b"null"
   elif fault in ("unauthorized", "server_error"):
     status = 401 if fault == "unauthorized" else 500
-  if fault not in (None, "foreign", "prepared"):
+  if fault not in (None, "foreign", "prepared", "predecessor", "absent"):
     headers.pop("Docker-Content-Digest", None)
 if state.get("oversized"):
   data = b" " * 4194305

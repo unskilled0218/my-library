@@ -15,6 +15,8 @@ import unittest
 from unittest.mock import patch
 import time
 
+from tests.release_test_support import SupervisedProcess, SupervisionError, run_supervised, temporary_directory
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -73,8 +75,14 @@ def helper_module():
 
 class BashPublicationTests(unittest.TestCase):
   def setUp(self):
-    self.temporary = tempfile.TemporaryDirectory(prefix="bash-release-test-", dir="/tmp/opencode" if Path("/tmp/opencode").is_dir() else None)
-    self.addCleanup(self.temporary.cleanup)
+    self.temporary = temporary_directory(prefix="bash-release-test-")
+    self.retain_fixture = False
+    def cleanup_fixture():
+      if self.retain_fixture:
+        self.temporary._finalizer.detach()
+      else:
+        self.temporary.cleanup()
+    self.addCleanup(cleanup_fixture)
     self.base = Path(self.temporary.name)
     self.root, self.bin = self.base / "project", self.base / "bin"
     self.root.mkdir()
@@ -132,11 +140,27 @@ class BashPublicationTests(unittest.TestCase):
     return path.read_text().splitlines() if path.exists() else []
 
   def release(self, *args):
-    result = subprocess.run(["bash", str(self.root / "scripts/release.sh"), *args], cwd=self.base,
-                            env=self.environment, capture_output=True, text=True, timeout=90)
+    try:
+      result = run_supervised(["bash", str(self.root / "scripts/release.sh"), *args],
+                              cwd=self.base, env=self.environment, timeout=90)
+    except SupervisionError:
+      self.retain_fixture = True
+      raise
     self.assertNotIn("SENTINEL_PRIVATE_TOKEN", result.stdout + result.stderr)
     self.assertEqual(list(self.base.glob("bash-release.*")), [], "Only run-owned temporary paths must be cleaned")
     return result
+
+  def start_release(self):
+    process = SupervisedProcess(["bash", str(self.root / "scripts/release.sh")],
+                                cwd=self.base, env=self.environment)
+    def cleanup_process():
+      try:
+        process.close()
+      except SupervisionError:
+        self.retain_fixture = True
+        raise
+    self.addCleanup(cleanup_process)
+    return process.start()
 
   def assert_no_writes(self):
     self.assertFalse(set(self.events()) & {"build", "tag-push", "promote", "release-post", "package-link"}, self.events())
@@ -156,9 +180,7 @@ class BashPublicationTests(unittest.TestCase):
       os.mkfifo(self.base / name)
       descriptors.append(os.open(self.base / name, os.O_RDWR | os.O_NONBLOCK))
     entered, release = descriptors
-    process = subprocess.Popen(["bash", str(self.root / "scripts/release.sh")], cwd=self.base,
-                               env=self.environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                               start_new_session=True)
+    process = self.start_release()
     def cleanup():
       os.write(release, b"1")
       if process.poll() is None:
@@ -166,8 +188,7 @@ class BashPublicationTests(unittest.TestCase):
       try:
         process.communicate(timeout=10)
       except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGKILL)
-        process.communicate(timeout=10)
+        process.close()
       finally:
         for descriptor in descriptors:
           os.close(descriptor)
@@ -816,8 +837,7 @@ class BashPublicationTests(unittest.TestCase):
 
   def test_signal_cleans_owned_temporaries_and_releases_lock(self):
     self.change(hang_build=True)
-    process = subprocess.Popen(["bash", str(self.root / "scripts/release.sh")], cwd=self.base,
-                               env=self.environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    process = self.start_release()
     try:
       deadline = time.monotonic() + 30
       while "build" not in self.events() and process.poll() is None and time.monotonic() < deadline:
@@ -825,6 +845,7 @@ class BashPublicationTests(unittest.TestCase):
       self.assertIn("build", self.events())
       process.terminate()
       stdout, stderr = process.communicate(timeout=10)
+      stdout, stderr = stdout.decode(), stderr.decode()
       self.assertNotEqual(process.returncode, 0)
       self.assertIn("operation interrupted", stderr)
       self.assertIn("inspect exact remaining objects without rollback", stderr)
@@ -836,7 +857,7 @@ class BashPublicationTests(unittest.TestCase):
     finally:
       if process.poll() is None:
         process.kill()
-      process.communicate()
+      process.close()
 
   def test_changed_predecessor_after_build_stops_before_tag(self):
     self.change(change_latest_build=True)
@@ -1179,7 +1200,7 @@ class BashDataTests(unittest.TestCase):
     replies = [self.http_reply(401, b"{}", {"WWW-Authenticate": 'Bearer realm="https://fixture.invalid/token",service="registry"'}),
                self.http_reply(200, b'{"token":"FIXTURE_BEARER_TOKEN"}'),
                self.http_reply(200, body, {"Docker-Content-Digest": digest})]
-    with tempfile.TemporaryDirectory(dir="/tmp/opencode") as work, patch.object(self.data, "capture", side_effect=replies) as capture:
+    with temporary_directory() as work, patch.object(self.data, "capture", side_effect=replies) as capture:
       self.assertEqual(self.data.registry(work, "https://fixture.invalid", "fixture.invalid/fixtures/application",
                                           "manifests", digest), (digest, {"schemaVersion": 2}))
       calls = [call.args[0] for call in capture.call_args_list]

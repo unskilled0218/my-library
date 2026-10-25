@@ -15,13 +15,21 @@ import unittest
 from unittest.mock import patch
 from urllib.parse import unquote, urlsplit
 
+from tests.release_test_support import temporary_directory
+
 
 ROOT = Path(__file__).resolve().parents[1]
-PINNED_HASHES = {
+UPSTREAM_BASELINE_HASHES = {
   "scripts/release.sh": "70c7cd8178760bc3772334f7855a4c4ce912fe8cff7ddab8de33614a431ac70b",
   "scripts/release-common.sh": "34ff0197f467994267beede70083a00dea69c2b8c7b24b966bb2e021a3cfaa9b",
   "scripts/release-data.py": "db250d7f6a0f6b419a9aeb9dcebec1a487c175f1901074b1039e19fcf9b2e5fa",
   "tests/fixtures/bash_release_ports.py": "c0c3cd8c3691db155f4c53538b3fe1d13b9f4ec9c3ccc19aa52f6cb509d3f153",
+}
+ADAPTED_HASHES = {
+  "scripts/release.sh": "8420c6a358aa107a1df885ee6727d835dd890e6a27182aa424f89407d7311a43",
+  "scripts/release-common.sh": "d3a282d37e2a522443373d8ddd131a34bd6625ae1f08b371df046fb4509585d6",
+  "scripts/release-data.py": "4f6dd3fca52b05a56375dd2d47716c008af6bebbe8bbf1fe01fe3c2cee5cf580",
+  "tests/fixtures/bash_release_ports.py": "4650fab536ca47b34bb4eef19e5a0e9f4fee5288c3cd267702476d5f50d55e00",
 }
 
 
@@ -39,8 +47,13 @@ def anchors(text):
 
 class ConsumerReleaseTests(unittest.TestCase):
   def test_protocol_and_fake_ports_match_documented_immutable_pin(self):
-    for name, expected in PINNED_HASHES.items():
+    """Keep upstream baseline evidence distinct from reviewed downstream bytes."""
+    provenance = (ROOT / "docs/release-adaptations.md").read_text()
+    self.assertIn("5b918ba0aefb9ac9643fa99976140c95d17cb3e2", provenance)
+    self.assertEqual(set(UPSTREAM_BASELINE_HASHES), set(ADAPTED_HASHES))
+    for name, expected in ADAPTED_HASHES.items():
       with self.subTest(path=name):
+        self.assertIn(UPSTREAM_BASELINE_HASHES[name], provenance)
         self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), expected)
 
   def test_configuration_version_notes_and_npm_metadata_agree(self):
@@ -131,7 +144,7 @@ class ConsumerReleaseTests(unittest.TestCase):
             pending.append(target)
 
   def test_validation_with_missing_token_cannot_invoke_services_or_create_state(self):
-    with tempfile.TemporaryDirectory(prefix="consumer-release-", dir="/tmp/opencode") as directory:
+    with temporary_directory(prefix="consumer-release-") as directory:
       base = Path(directory)
       root, binaries = base / "project", base / "bin"
       (root / "scripts").mkdir(parents=True)

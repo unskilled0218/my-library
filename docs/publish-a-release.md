@@ -7,9 +7,9 @@
 
 ## Inputs and provenance
 
-Root `VERSION` is authoritative; keep `package.json` and both root version fields in `package-lock.json` synchronized. Configuration in `scripts/release.json` targets `dev/my-library` and `git.lan/dev/my-library`; its committed [release notes](releases/0.7.8.md) must begin with the matching release heading. No version-tag image alias is created: deploy a verified digest or mutable `latest` using [image usage](image-usage.md).
+Root `VERSION` is authoritative; keep `package.json` and both root version fields in `package-lock.json` synchronized. Configuration in `scripts/release.json` targets `dev/my-library` and `git.lan/dev/my-library`; its committed [release notes](releases/0.7.9.md) must begin with the matching release heading. No version-tag image alias is created: deploy a verified digest or mutable `latest` using [image usage](image-usage.md).
 
-The three protocol files `scripts/release.sh`, `scripts/release-common.sh`, and `scripts/release-data.py` are unchanged copies of [container-release-template commit 5b918ba0aefb9ac9643fa99976140c95d17cb3e2](https://git.lan/dev/container-release-template/src/commit/5b918ba0aefb9ac9643fa99976140c95d17cb3e2), template version 0.6.1. No managed updater runs. The root `tests/` layout and fake command ports come from the same pin; only the template README assertions were adapted to this operator document. Consumer checks live separately in `tests/test_consumer_release.py`. Dedicated reference documentation is adapted for this application; upstream historical evidence remains linked at the immutable pin, not claimed as consumer verification.
+The three protocol files derive from [container-release-template commit 5b918ba0aefb9ac9643fa99976140c95d17cb3e2](https://git.lan/dev/container-release-template/src/commit/5b918ba0aefb9ac9643fa99976140c95d17cb3e2), template version 0.6.1, with explicit [local protocol and test adaptations](release-adaptations.md). They are not unchanged upstream copies. Original baseline hashes and current adapted hashes are checked separately. No managed updater runs. Root `tests/` retains upstream fixture resolution and safety scenarios, with consumer documentation assertions, supervision, and regression additions. Historical upstream evidence is not consumer verification.
 
 ## Verify and publish
 
@@ -30,6 +30,6 @@ The command builds a committed snapshot into a staging image, verifies both plat
 
 ## Readiness and recovery
 
-Live publication is blocked until the inherited [N1/N2 warnings](bash-publication.md#known-limits) receive a separately reviewed readiness decision or an explicitly reviewed new upstream pin. Local tests and advertised builder platforms do not waive this gate. An implementation branch must never publish.
+Live publication remains blocked pending code review of the [local N1/N2 adaptations](release-adaptations.md#verification-and-review-status) and all independent readiness gates. Local regression success does not certify image builds, browser/runtime behavior, remote version availability, or service permissions. An implementation branch must never publish.
 
 Promotion precedes release creation: a failure can leave `latest` changed and publication incomplete. Preserve accepted objects and the original checkout/pin, follow [retry states](bash-publication.md#retry-states), and inspect exact evidence. Never blindly retry an uncertain write, delete release evidence, roll back `latest`, or reassign a package to force success. See [troubleshooting](release-process.md#troubleshooting).

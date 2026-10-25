@@ -276,8 +276,29 @@ def notes(root, commit, config):
   return text
 
 
+def docker_discovery(original):
+  """Preserve CLI search order without inheriting registry credentials or helpers."""
+  configuration = document(original / "config.json", CONFIG_LIMIT) if (original / "config.json").exists() else {}
+  require(isinstance(configuration, dict), "Invalid Docker configuration")
+  private = {}
+  if "cliPluginsExtraDirs" in configuration:
+    directories = configuration["cliPluginsExtraDirs"]
+    require(isinstance(directories, list) and all(isinstance(value, str) and value and
+            not re.search(r"[\x00-\x1f\x7f]", value) for value in directories), "Invalid Docker plugin discovery paths")
+    private["cliPluginsExtraDirs"] = [str(Path(value).absolute()) for value in directories]
+  candidates = [Path(value) / "docker-buildx" for value in private.get("cliPluginsExtraDirs", [])]
+  local = original / "cli-plugins/docker-buildx"
+  for candidate in [*candidates, local]:
+    if candidate.exists() or candidate.is_symlink():
+      require(candidate.is_file() and os.access(candidate, os.X_OK), "Selected Buildx candidate is unusable")
+      break
+  return private, local
+
+
 def auth(root, work):
   config = settings(root)
+  original = Path(os.environ.get("DOCKER_CONFIG") or str(Path.home() / ".docker")).absolute()
+  discovery, local_plugin = docker_discovery(original)
   username = os.environ.get("GIT_USERNAME", config["username"])
   require(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", username), "Invalid login")
   token_path = Path(os.environ.get("GIT_TOKEN", config["token_file"])).expanduser()
@@ -299,10 +320,12 @@ def auth(root, work):
   (work / "api.curl").write_text('header = "Authorization: token ' + token + '"\n')
   basic = base64.b64encode((username + ":" + token).encode()).decode()
   (work / "registry.curl").write_text('header = "Authorization: Basic ' + basic + '"\n')
-  original = Path(os.environ.get("DOCKER_CONFIG") or str(Path.home() / ".docker"))
   docker = work / "docker"
   docker.mkdir()
-  write(docker / "config.json", {"auths": {urlsplit(config["gitea"]).netloc: {}}})
+  write(docker / "config.json", {"auths": {urlsplit(config["gitea"]).netloc: {}}} | discovery)
+  if local_plugin.exists() or local_plugin.is_symlink():
+    (docker / "cli-plugins").mkdir()
+    (docker / "cli-plugins/docker-buildx").symlink_to(local_plugin)
   if (original / "contexts").is_dir():
     shutil.copytree(original / "contexts", docker / "contexts")
   for path in work.iterdir():
