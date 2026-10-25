@@ -4,6 +4,7 @@
   - [Browser tests](#browser-tests)
   - [Background addition regressions](#background-addition-regressions)
   - [Live Kyobo diagnostic](#live-kyobo-diagnostic)
+  - [Release workflow checks](#release-workflow-checks)
 
 ```bash
 npm run format:check
@@ -55,3 +56,20 @@ The ordinary probe also searches without fetching full product metadata. Request
 npm run kyobo:probe -- --details 9791157107223
 npm run kyobo:probe -- "너의 췌장을 먹고 싶어"
 ```
+
+## Release workflow checks
+
+Run the pinned release regressions and consumer checks without production credentials or services:
+
+```sh
+bash -n scripts/release.sh
+bash -n scripts/release-common.sh
+python3 -B -m unittest discover -s tests -v
+./scripts/release.sh --validate
+```
+
+Root `tests/test_bash_release.py` and `tests/fixtures/bash_release_ports.py` exercise temporary Git repositories and fake Git/curl/Docker ports. They cover strict settings/notes, source isolation, bounded reads, platform and OCI-label checks, partial writes, completed retries, tag conflicts, and guarded package association on the reviewed server contracts. Template-only README assertions now check the consumer operator document; protocol scripts retain the [documented pin](publish-a-release.md#inputs-and-provenance). `tests/test_consumer_release.py` checks npm version agreement, image/deployment contracts, missing-token validation isolation, and local diagnostic/document links and fragments. These assertions do not certify a live server or runtime image.
+
+`--validate` checks local configuration/version/paths, not npm metadata agreement, committed notes, credentials, services, Docker, or write permissions. Run the unittest suite as well. Application and browser checks above remain separate prerequisites; the release command does not run them.
+
+Build both architectures without pushing before production approval. Runtime verification needs disposable database/storage and each selected runtime architecture; advertised builder platforms and fake-port tests do not prove migrations, health, persistence, or Chromium execution. No live publication, UI rendering, runtime/emulation, power-loss durability, retention, or deletion-safety claim follows from local checks. Keep the inherited [publication limits and N1/N2 readiness gates](bash-publication.md#known-limits); passing tests is not permission to bypass them.

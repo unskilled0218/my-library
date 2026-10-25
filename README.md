@@ -1,8 +1,9 @@
 # My Library
 
-- [Features](#features)
-- [Quick start](#quick-start)
-- [Documentation](#documentation)
+- [My Library](#my-library)
+  - [Features](#features)
+  - [Quick start](#quick-start)
+  - [Documentation](#documentation)
 
 A responsive personal book-management service for private and shared libraries, built with Next.js, React, and PostgreSQL.
 
@@ -32,6 +33,7 @@ A responsive personal book-management service for private and shared libraries, 
 - [Production deployment, backups, and upgrades](docs/production-deployment.md)
 - [Local development](docs/local-development.md)
 - [Publishing a release](docs/publish-a-release.md)
+- [Digest-pinned release images](docs/image-usage.md)
 - [Verification and Kyobo diagnostics](docs/verification.md)
 - [Background book additions](docs/background-book-additions.md)
 - [Language preferences](docs/languages.md)

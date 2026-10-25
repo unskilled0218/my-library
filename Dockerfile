@@ -24,14 +24,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 FROM node:24-bookworm AS runtime
 
-ARG BUILD_VERSION=development
-ARG BUILD_REVISION=unknown
-ARG BUILD_SOURCE=https://git.lan/dev/my-library
-
-LABEL org.opencontainers.image.title="My Library" \
-  org.opencontainers.image.source="$BUILD_SOURCE" \
-  org.opencontainers.image.revision="$BUILD_REVISION" \
-  org.opencontainers.image.version="$BUILD_VERSION"
+# Release version, revision, and source are supplied by Buildx --label.
+LABEL org.opencontainers.image.title="My Library"
 
 ENV NODE_ENV=production \
   HOSTNAME=0.0.0.0 \

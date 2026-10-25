@@ -10,3 +10,7 @@ book-files/
 *.log
 *.tsbuildinfo
 .DS_Store
+.template-operation.lock
+.release-template/
+.template-transaction/
+__pycache__/

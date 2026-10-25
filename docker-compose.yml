@@ -1,6 +1,6 @@
 services:
   app:
-    image: git.lan/dev/my-library:${MY_LIBRARY_VERSION:-latest}
+    image: ${MY_LIBRARY_IMAGE:-git.lan/dev/my-library:${MY_LIBRARY_VERSION:-latest}}
     container_name: my-library
     ports:
       - '3000:3000'

@@ -1,12 +1,14 @@
 # Production deployment
 
+- [Production deployment](#production-deployment)
+
 Release images are published to the self-hosted Forgejo container registry at `git.lan/dev/my-library`. The image contains the standalone Next.js server, production dependencies, Prisma migrations, and Playwright Chromium for Kyobo product pages. Container startup applies pending migrations and then starts the server; it does not download packages or browsers.
 
 The Docker host must trust the certificate authority that issued the `git.lan` certificate. Configure that trust in the host and Docker daemon rather than disabling TLS verification in this repository.
 
 1. Run `docker login git.lan` when the package is private.
 2. Copy `.env.example` to `.env` and replace `SESSION_SECRET` with at least 32 random characters. Single-quote literal secret values containing `$` so Compose does not interpolate them.
-3. Optionally set `MY_LIBRARY_VERSION` to an immutable tag such as `v0.7.3`. It defaults to `latest` when omitted.
+3. For immutable deployment, set `MY_LIBRARY_IMAGE` to `git.lan/dev/my-library@sha256:<verified-index-digest>` from verified publication/tag evidence. It overrides `MY_LIBRARY_VERSION`; without either setting, Compose uses `latest`. `MY_LIBRARY_VERSION` remains available only for existing legacy tags such as `v0.7.3`; the new release workflow creates no version-tag image aliases. See [image usage](image-usage.md).
 4. Optionally set both `ADMIN_ID` and `ADMIN_PASSWORD` to create the first administrator non-interactively. `ADMIN_PASSWORD` must be longer than 12 characters.
 5. Run `docker compose pull` followed by `docker compose up -d`.
 6. Wait for `docker compose ps` to report the app healthy, then open `http://localhost:3000` or request `http://localhost:3000/api/health`.
@@ -29,4 +31,4 @@ docker compose run --rm --no-deps --user root \
   -c 'chown -R node:node /app/data/covers'
 ```
 
-To roll back application code, set `MY_LIBRARY_VERSION` to the previous immutable tag and recreate the app with `docker compose up -d app`. Image rollback does not reverse database migrations; restore the matching PostgreSQL backup when a newer release changed the schema.
+To roll back deployed application code, set `MY_LIBRARY_IMAGE` to the previously verified digest and recreate the app with `docker compose up -d app`. Existing legacy tags may still be selected with `MY_LIBRARY_VERSION` only when `MY_LIBRARY_IMAGE` is unset. This deployment operation never rewrites the registry's `latest`. Image rollback does not reverse database migrations; restore the matching PostgreSQL backup when a newer release changed the schema.
