@@ -4,7 +4,7 @@
   "repository": "dev/my-library",
   "image": "git.lan/dev/my-library",
   "username": "dev",
-  "token_file": "~/.config/git/token",
+  "token_file": "~/.config/token/git",
   "notes": "docs/releases/0.7.11.md",
   "platforms": ["linux/amd64", "linux/arm64"]
 }

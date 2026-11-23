@@ -64,7 +64,7 @@ class ConsumerReleaseTests(unittest.TestCase):
     self.assertEqual([package["version"], lock["version"], lock["packages"][""]["version"]], [version] * 3)
     self.assertEqual(config, {
       "schema": 1, "gitea": "https://git.lan", "repository": "dev/my-library",
-      "image": "git.lan/dev/my-library", "username": "dev", "token_file": "~/.config/git/token",
+      "image": "git.lan/dev/my-library", "username": "dev", "token_file": "~/.config/token/git",
       "notes": f"docs/releases/{version}.md", "platforms": ["linux/amd64", "linux/arm64"],
     })
     notes = (ROOT / config["notes"]).read_bytes()
