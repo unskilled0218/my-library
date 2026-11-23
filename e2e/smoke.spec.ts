@@ -6,10 +6,11 @@ async function importTestBook(
   libraryHref: string,
   title: string,
   sourceId: string,
+  cover?: { mime: string; base64: string },
 ) {
   await page.goto(libraryHref)
   const result = await page.evaluate(
-    async ({ libraryHref, title, sourceId }) => {
+    async ({ libraryHref, title, sourceId, cover }) => {
       const form = new FormData()
       form.set('apply', 'true')
       form.set(
@@ -22,6 +23,7 @@ async function importTestBook(
               books: [
                 {
                   title,
+                  cover,
                   authors: ['Test Author'],
                   isbn13: `978${sourceId.slice(-10).padStart(10, '0')}`,
                   sourceUrl: `https://product.kyobobook.co.kr/detail/${sourceId}`,
@@ -29,7 +31,7 @@ async function importTestBook(
                     [
                       {
                         name: 'Test',
-                        url: 'https://store.kyobobook.co.kr/category/domestic/01',
+                        url: 'https://store.kyobobook.co.kr/category/smoke-test',
                       },
                     ],
                   ],
@@ -47,11 +49,55 @@ async function importTestBook(
       )
       return { status: response.status, body: await response.text() }
     },
-    { libraryHref, title, sourceId },
+    { libraryHref, title, sourceId, cover },
   )
   expect(result.status, result.body).toBe(200)
   await page.goto(libraryHref)
 }
+
+test('a saved book cover is readable only with library access', async ({
+  page,
+}) => {
+  const register = async (prefix: string) => {
+    await page.goto('/register')
+    await page.getByLabel('로그인 ID').fill(`${prefix}-${Date.now()}`)
+    await page.getByLabel('비밀번호').fill('correct-horse-library-staple')
+    await page.getByRole('button', { name: '계속' }).click()
+    await expect(page).toHaveURL(/\/libraries$/)
+  }
+  await register('owner')
+  const library = await page
+    .locator('#library-card-list a')
+    .first()
+    .getAttribute('href')
+  const base64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aU1sAAAAASUVORK5CYII='
+  await importTestBook(page, library!, 'Covered book', 'S000001750574', {
+    mime: 'image/png',
+    base64,
+  })
+  const card = page.getByRole('link').filter({ hasText: 'Covered book' })
+  const coverUrl = await card.locator('img').getAttribute('src')
+  expect(coverUrl).toMatch(/^\/api\/covers\//)
+  await card.click()
+  await page.reload()
+  const image = page.locator(`img[src="${coverUrl}"]`)
+  expect(
+    await image.evaluate(async (img: HTMLImageElement) => {
+      await img.decode()
+      return [img.naturalWidth, img.naturalHeight]
+    }),
+  ).toEqual([1, 1])
+  const response = await page.request.get(coverUrl!)
+  expect(response.status()).toBe(200)
+  expect(response.headers()['content-type']).toBe('image/png')
+  expect(response.headers()['cache-control']).toBe('private, no-store')
+  expect(await response.body()).toEqual(Buffer.from(base64, 'base64'))
+  await page.context().clearCookies()
+  expect((await page.request.get(coverUrl!)).status()).toBe(404)
+  await register('outsider')
+  expect((await page.request.get(coverUrl!)).status()).toBe(404)
+})
 
 test('signed-out front page redirects to a usable login page', async ({
   page,

@@ -6,6 +6,7 @@ test-results/
 .env
 .env.local
 covers/
+!src/app/api/covers/
 book-files/
 *.log
 *.tsbuildinfo

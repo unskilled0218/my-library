@@ -7,7 +7,7 @@
 
 ## Inputs and provenance
 
-Root `VERSION` is authoritative; keep `package.json` and both root version fields in `package-lock.json` synchronized. Configuration in `scripts/release.json` targets `dev/my-library` and `git.lan/dev/my-library`; its committed [release notes](releases/0.7.10.md) must begin with the matching release heading. No version-tag image alias is created: deploy a verified digest or mutable `latest` using [image usage](image-usage.md).
+Root `VERSION` is authoritative; keep `package.json` and both root version fields in `package-lock.json` synchronized. Configuration in `scripts/release.json` targets `dev/my-library` and `git.lan/dev/my-library`; its committed [release notes](releases/0.7.11.md) must begin with the matching release heading. No version-tag image alias is created: deploy a verified digest or mutable `latest` using [image usage](image-usage.md).
 
 The three protocol files derive from [container-release-template commit 5b918ba0aefb9ac9643fa99976140c95d17cb3e2](https://git.lan/dev/container-release-template/src/commit/5b918ba0aefb9ac9643fa99976140c95d17cb3e2), template version 0.6.1, with explicit [local protocol and test adaptations](release-adaptations.md). They are not unchanged upstream copies. Original baseline hashes and current adapted hashes are checked separately. No managed updater runs. Root `tests/` retains upstream fixture resolution and safety scenarios, with consumer documentation assertions, supervision, and regression additions. Historical upstream evidence is not consumer verification.
 
