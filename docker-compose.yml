@@ -1,17 +1,19 @@
 services:
   app:
-    image: ${MY_LIBRARY_IMAGE:-git.lan/dev/my-library:${MY_LIBRARY_VERSION:-latest}}
+    image: git.lan/dev/my-library:latest
     container_name: my-library
     ports:
       - '3000:3000'
-    env_file: .env
     environment:
       NODE_ENV: production
       COVER_STORAGE_PATH: /app/data/covers
       BOOK_FILE_STORAGE_PATH: /app/data/books
+      DATABASE_URL: postgresql://library:library@db:5432/library?schema=public
+      SESSION_SECRET: replace-with-at-least-32-random-characters
+      ALLOWED_DEV_ORIGINS: dev.lan
     volumes:
-      - covers:/app/data/covers
-      - book_files:/app/data/books
+      - ./covers:/app/data/covers
+      - ./book_files:/app/data/books
     depends_on:
       db:
         condition: service_healthy
@@ -40,10 +42,5 @@ services:
       timeout: 5s
       retries: 10
     volumes:
-      - postgres:/var/lib/postgresql/data
+      - ./postgres:/var/lib/postgresql/data
     restart: unless-stopped
-
-volumes:
-  book_files:
-  covers:
-  postgres:
